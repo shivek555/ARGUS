@@ -1,0 +1,6 @@
+# PoC Baseline 2. Authoritative. ML/LLM cannot override BLOCK.
+
+http_allowlist:
+  - "https://fake.local/api"
+http_require_scope: egress
+creds_require_scope: secrets-audit
