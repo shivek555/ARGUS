@@ -29,6 +29,7 @@ Short ADRs. Newest first. Do not hide disagreements.
   3. One `test-v2 freeze:` commit (module + generated files + hash), then the single `r1b_final` run.
 - **Claim downgrade (must appear wherever G4-R2 is reported):** test v2 is an **author-aware sealed test**, not a blind test. It controls for analysis drift (analysis fixed first) but **not** for author bias in scenario design. A pass is weaker evidence than a blind pass; a fail remains informative. Recommended if time allows: a human-written "test-B" before the final paper.
 - **Alternatives:** wait for a human teammate (none available); skip the re-test and apply the stop rule now (loses the G4-R2 evidence).
+- **Update (same day):** the user (project owner) writes `templates_test_v2.py` instead of Claude. The user did not write the feature or detector code but has read the R1/R1b-3 summaries in chat, including that unseen legitimate secrets tasks are the detector's weak spot. So test v2 is **partially blind**: better than Claude-authored, still not fully blind. The composition rule above still applies, and the claim wording stays "author-aware sealed test" unless an examiner agrees otherwise.
 
 ---
 

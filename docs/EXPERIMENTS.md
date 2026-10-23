@@ -68,5 +68,6 @@ The v1 test split was used once for the R1 G4 run (row `r1-test`). Further evalu
 | Run | Date | Command | Result | Notes |
 |---|---|---|---|---|
 | r1b-dev | 2026-10-23 | `python -m argus.eval.r1b` | `eval/results/r1b/dev_selection.json` | Dev only. 16-config grid, LOIO + nested FPR. Selected `ocsvm-nu0.10-quantile-global`: nested FPR 9.5% (plain 0%, egress 0%, secrets 66.7%), AUROC 0.935, DR-compliant 96.7%. ADR-0007. |
+| catalog-check | 2026-10-23 | `python -m argus.eval.catalog_check` | `eval/results/catalog/summary.json` (sha256 `2cd76ac213f9…`) | Exploratory, benign only: 216 legit tasks / 27 categories. Policy blocks 0. False alarms: R1b-selected 6%, R1 detector 34%. All residual alarms at requested `fs_write`. `docs/BENIGN_CATALOG.md`. |
 
 Blind test v2: **TODO: not yet delivered** (teammate, `docs/TEST_V2_AUTHORING.md`). Its hash goes here in the `test-v2 freeze:` commit.

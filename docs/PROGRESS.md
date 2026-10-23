@@ -4,7 +4,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Current phase
 
-**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); R1b-2 done; R1b-3 built and run on dev (ADR-0007), test v2 now written by Claude (ADR-0008, author-aware, not blind): analysis committed first, then `test-v2 freeze:`.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
+**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); R1b-2 done; R1b-3 built and run on dev (ADR-0007), test v2 being written by the project owner (ADR-0008, partially blind): analysis committed first, then `test-v2 freeze:`.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
 
 ## Roadmap (ADR-0003)
 
@@ -33,6 +33,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 - [x] P1-6: Eval harness (`python -m argus.eval.poc`) → summary.json
 - [x] 8/8 tests passing (gateway bypass, no-network, label leak, replay)
 - [x] Bugfix: syntax error in tools.py (mismatched quote), unused Gateway import in prefix.py
+- [x] Benign task catalog check (2026-10-23, exploratory): 27 categories × 8 legit agent tasks; 0 policy blocks; R1b-selected detector false alarms 6% vs R1 detector 34%; residual alarms = requested file edits. `docs/BENIGN_CATALOG.md`.
 - [x] CI (2026-10-23): `.github/workflows/ci.yml` — pytest (mock LLM mode), byte-identical regeneration checks for bench v1 / dev v2 / test v2 (once frozen), dashboard typecheck + build + npm audit. **First GitHub run green** (2026-10-23, commit `64eea66`, run 39919602781): all 701 tests pass on Linux and every frozen benchmark regenerates byte-identically there, so the bench files are reproducible across OSes.
 - [x] Web app (ADR-0002, 2026-10-23): FastAPI `argus/api/` + React/TS `dashboard/` — overview, scenario drill-down, enforce-mode gateway playground, experiments/provenance. 33/33 tests (25 new API/security tests). See `docs/WEBAPP.md`.
 
@@ -46,7 +47,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Next
 
-1. R1b-1 (Claude, ADR-0008): test v2 per `docs/TEST_V2_AUTHORING.md` with composition fixed in ADR-0008 → `test-v2 freeze:` commit, **after** the R1b analysis commit.
+1. R1b-1 (**user**, ADR-0008): test v2 per `docs/TEST_V2_AUTHORING.md` with composition fixed in ADR-0008 → `test-v2 freeze:` commit, **after** the R1b analysis commit.
 2. R1b-2 **done**: dev v2 benign (420, 14 intents), policy v3, `--split test_v2` generator mode, blindness guard. Checkpoint: review `docs/DEV_V2.md`.
 3. R1b-3 **built + run on dev**: selected `ocsvm-nu0.10-quantile-global` (nested FPR 9.5%). Protocol committed before test v2 is written (ADR-0008).
 4. R1b-4: `python -m argus.eval.r1b_final` once → G4-R2 verdict + `docs/R1B_RESULTS.md`.
@@ -56,7 +57,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 - **G4-R2 likely to fail on the FPR condition (ADR-0007, predicted before test v2):** selected config's nested FPR is 0% for plain/egress tasks but 66.7% for unseen legitimate secrets tasks; margin to the 10% bar is 0.5 pp.
 
-- **Test v2 is not blind (ADR-0008):** Claude wrote it knowing the detector. Analysis was fixed first, but author bias in scenario design is uncontrolled; report G4-R2 as an author-aware sealed test.
+- **Test v2 is only partially blind (ADR-0008):** written by the project owner, who has seen high-level detector results. Analysis was fixed first, but author bias in scenario design is uncontrolled; report G4-R2 as an author-aware sealed test.
 - **Repo is public** (https://github.com/shivek555/ARGUS): only synthetic canaries are committed, but teammate-authored test v2 will be readable by anyone, including the detector side; blindness rests on discipline + `tests/test_blindness.py`. Python deps in `requirements.txt` are lower bounds, not pins: a future scikit-learn/FastAPI release could change behaviour in CI before it does locally.
 
 - **B2+ closes much of the gap (dev evidence):** policy v3 blocks all dev credential/exfil policy-compliant attacks; ML's distinct value vs B2+ may be limited to objective-relative tampering. Will be reported as the secondary comparison in R1b.
