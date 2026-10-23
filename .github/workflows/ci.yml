@@ -1,0 +1,85 @@
+# ARGUS CI. Brief §10: tests run on every change in mock LLM mode, with no network
+# calls from the code under test and no secrets. Frozen benchmark hashes are
+# re-verified here, so a changed test split fails CI.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ARGUS_LLM_MODE: mock
+  PYTHONHASHSEED: "0"
+
+jobs:
+  research:
+    name: Research code (tests + benchmark integrity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Benchmark files were generated on CPython 3.11; regeneration checks pin it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install
+        run: python -m pip install -r requirements.txt
+
+      - name: Tests (unit, integration, security)
+        run: python -m pytest -q
+
+      - name: Benchmark v1 regenerates byte-identically (frozen test split)
+        run: python -m argus.bench.generate --check
+
+      - name: Dev v2 benign regenerates byte-identically
+        run: python -m argus.bench.benign_v2 --check
+
+      # Only once the teammate's blind split exists (R1b-1). Checks the frozen
+      # file; it never prints or analyses the trajectories.
+      - name: Blind test v2 regenerates byte-identically (if frozen)
+        run: |
+          if [ -f argus/bench/templates_test_v2.py ]; then
+            python -m argus.bench.generate --split test_v2 --check
+          else
+            echo "test v2 not delivered yet; skipping"
+          fi
+
+  dashboard:
+    name: Dashboard (typecheck + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit runtime + dev dependencies
+        run: npm audit --audit-level=moderate

@@ -33,6 +33,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 - [x] P1-6: Eval harness (`python -m argus.eval.poc`) → summary.json
 - [x] 8/8 tests passing (gateway bypass, no-network, label leak, replay)
 - [x] Bugfix: syntax error in tools.py (mismatched quote), unused Gateway import in prefix.py
+- [x] CI (2026-10-23): `.github/workflows/ci.yml` — pytest (mock LLM mode), byte-identical regeneration checks for bench v1 / dev v2 / test v2 (once frozen), dashboard typecheck + build + npm audit. All steps verified locally; **not yet run on GitHub (no remote)**.
 - [x] Web app (ADR-0002, 2026-10-23): FastAPI `argus/api/` + React/TS `dashboard/` — overview, scenario drill-down, enforce-mode gateway playground, experiments/provenance. 33/33 tests (25 new API/security tests). See `docs/WEBAPP.md`.
 
 ## PoC results (2026-10-11)
@@ -51,6 +52,8 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks
+
+- **CI not yet exercised on GitHub** (repo has no remote). Python deps in `requirements.txt` are lower bounds, not pins: a future scikit-learn/FastAPI release could change behaviour in CI before it does locally.
 
 - **B2+ closes much of the gap (dev evidence):** policy v3 blocks all dev credential/exfil policy-compliant attacks; ML's distinct value vs B2+ may be limited to objective-relative tampering. Will be reported as the secondary comparison in R1b.
 
