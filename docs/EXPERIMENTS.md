@@ -65,4 +65,8 @@ The v1 test split was used once for the R1 G4 run (row `r1-test`). Further evalu
 
 `python -m argus.bench.benign_v2` → `argus/bench/dev_v2/benign.jsonl`, sha256 `5aba3add28871b9c8b3bf9209439c0dc243dbe498b1a1202ea36478a8a670758`, 420 trajectories, 14 intents. Dev data (not frozen like a test split, but hashed so R1b-3 runs are reproducible). Details: `docs/DEV_V2.md`.
 
+| Run | Date | Command | Result | Notes |
+|---|---|---|---|---|
+| r1b-dev | 2026-10-23 | `python -m argus.eval.r1b` | `eval/results/r1b/dev_selection.json` | Dev only. 16-config grid, LOIO + nested FPR. Selected `ocsvm-nu0.10-quantile-global`: nested FPR 9.5% (plain 0%, egress 0%, secrets 66.7%), AUROC 0.935, DR-compliant 96.7%. ADR-0007. |
+
 Blind test v2: **TODO: not yet delivered** (teammate, `docs/TEST_V2_AUTHORING.md`). Its hash goes here in the `test-v2 freeze:` commit.

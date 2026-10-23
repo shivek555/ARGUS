@@ -4,14 +4,14 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Current phase
 
-**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); test v2 being written blind by a teammate; R1b-2 done (2026-10-23) — checkpoint: user reviews `docs/DEV_V2.md`.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
+**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); R1b-2 done; R1b-3 built and run on dev (ADR-0007), test v2 now written by Claude (ADR-0008, author-aware, not blind): analysis committed first, then `test-v2 freeze:`.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
 
 ## Roadmap (ADR-0003)
 
 | Phase | Focus | Gate | Status |
 |---|---|---|---|
 | R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
-| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-2 done; waiting on test v2 + review) |
+| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-3 ready; waiting on test v2) |
 | R2 | Live LLM intent monitor, cached replay, injection-safe | schema-validated, cannot override BLOCK | not started |
 | R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | full loop runs | not started |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | not started |
@@ -46,13 +46,17 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Next
 
-1. R1b-1 (teammate, parallel): blind test v2 per `docs/TEST_V2_AUTHORING.md` → `test-v2 freeze:` commit.
+1. R1b-1 (Claude, ADR-0008): test v2 per `docs/TEST_V2_AUTHORING.md` with composition fixed in ADR-0008 → `test-v2 freeze:` commit, **after** the R1b analysis commit.
 2. R1b-2 **done**: dev v2 benign (420, 14 intents), policy v3, `--split test_v2` generator mode, blindness guard. Checkpoint: review `docs/DEV_V2.md`.
-3. R1b-3: LOIO calibration + 16-config grid, dev-only report, protocol commit (only after test v2 is frozen).
+3. R1b-3 **built + run on dev**: selected `ocsvm-nu0.10-quantile-global` (nested FPR 9.5%). Protocol committed before test v2 is written (ADR-0008).
+4. R1b-4: `python -m argus.eval.r1b_final` once → G4-R2 verdict + `docs/R1B_RESULTS.md`.
 2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks
 
+- **G4-R2 likely to fail on the FPR condition (ADR-0007, predicted before test v2):** selected config's nested FPR is 0% for plain/egress tasks but 66.7% for unseen legitimate secrets tasks; margin to the 10% bar is 0.5 pp.
+
+- **Test v2 is not blind (ADR-0008):** Claude wrote it knowing the detector. Analysis was fixed first, but author bias in scenario design is uncontrolled; report G4-R2 as an author-aware sealed test.
 - **Repo is public** (https://github.com/shivek555/ARGUS): only synthetic canaries are committed, but teammate-authored test v2 will be readable by anyone, including the detector side; blindness rests on discipline + `tests/test_blindness.py`. Python deps in `requirements.txt` are lower bounds, not pins: a future scikit-learn/FastAPI release could change behaviour in CI before it does locally.
 
 - **B2+ closes much of the gap (dev evidence):** policy v3 blocks all dev credential/exfil policy-compliant attacks; ML's distinct value vs B2+ may be limited to objective-relative tampering. Will be reported as the secondary comparison in R1b.

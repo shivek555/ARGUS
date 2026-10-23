@@ -1,4 +1,6 @@
-# Authoring guide: blind test split v2 (RESCUE-2, step R1b-1)
+# Authoring guide: test split v2 (RESCUE-2, step R1b-1)
+
+> **Update (ADR-0008):** test v2 was written by Claude, not by a separate teammate, so it is *author-aware and sealed*, not blind. The rules below were still followed, with the composition fixed in ADR-0008 before writing.
 
 You are writing the **confirmatory test set** for ARGUS. Its value depends on you not knowing
 how the detector works, so read this file and the files it lists, and nothing else under

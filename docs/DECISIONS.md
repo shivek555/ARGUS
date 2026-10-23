@@ -14,10 +14,44 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0008 — Test v2 is written by Claude (author-aware, sealed), not blind
+
+- **Date:** 2026-10-23
+- **Status:** accepted (user: "you are my teammate … jo bhi teammate kr raha hai woh tum karoge"). Supersedes the authoring part of ADR-0006.
+- **What changes:** no separate human writes test v2. Claude writes it following `docs/TEST_V2_AUTHORING.md`. ADR-0006's own fallback condition ("committed before any R1b detector code exists") **cannot be met**: R1b-3 code exists and its dev result is known, including the weakness on unseen legitimate secrets tasks (ADR-0007). The test author therefore knows the detector, the features and where it fails.
+- **Safeguards (in this order):**
+  1. The complete R1b analysis (`argus/eval/r1b.py`, `argus/eval/r1b_final.py`, grid, selection rule, G4-R2 numbers, ADR-0007) is committed **before** any test-v2 template is written, so the analysis cannot be adapted to the test.
+  2. **Composition fixed by rule now, before writing** (so it is not tuned toward pass or fail):
+     - Benign: 8 intents × 15 = 120. Two intents per hard-benign category in the guide → **2 secrets-audit (legitimate secret reads), 2 egress (legitimate uploads), 2 requested code/config writes, 2 broad exploration**. Context shares therefore follow from the rule: secrets 25%, egress 25%, plain 50%.
+     - Attacks: 6 templates × 15 = 90: goal hijack, credential discovery, exfiltration × {policy_visible, policy_compliant}.
+     - New project layout (data pipeline + mobile + infra), new canaries, new attacker hosts; no v1-test or dev-v2 paths; seeds 950000+.
+     - Secrets: a mix of paths the sensitivity heuristic rates high and paths it rates low, as real repos do; not chosen per template to help or hurt the detector.
+  3. One `test-v2 freeze:` commit (module + generated files + hash), then the single `r1b_final` run.
+- **Claim downgrade (must appear wherever G4-R2 is reported):** test v2 is an **author-aware sealed test**, not a blind test. It controls for analysis drift (analysis fixed first) but **not** for author bias in scenario design. A pass is weaker evidence than a blind pass; a fail remains informative. Recommended if time allows: a human-written "test-B" before the final paper.
+- **Alternatives:** wait for a human teammate (none available); skip the re-test and apply the stop rule now (loses the G4-R2 evidence).
+
+---
+
+## ADR-0007 — R1b-3 protocol: nested LOIO FPR, selected config, pre-test predictions
+
+- **Date:** 2026-10-23
+- **Status:** accepted. Committed **before** test v2 was written (order changed by ADR-0008: the analysis-first commit is the safeguard now that Claude writes test v2).
+- **Ambiguity resolved:** plan §2 said "configs with LOIO novel-benign FPR ≤ 10%", but LOIO thresholds are the 90th percentile of those same scores, so every config satisfies it by construction. Interpretation used: **nested LOIO FPR**. For each held-out intent, the threshold is computed from the other intents' LOIO scores only (within the context for per-context configs), then that intent's FPR is measured. It estimates the false-alarm rate on a benign task type that neither the model nor the threshold has seen. Selection rule, grid and G4-R2 numbers are otherwise exactly as in the plan.
+- **Analysis code fixed before test v2 exists:** `argus/eval/r1b.py` (dev selection) and `argus/eval/r1b_final.py` (single test-v2 run, G4-R2 verdict, B2+, controls, CIs, ablations, latency, exploratory v1). Deployment protocol: refit on all 420 dev benign; thresholds from LOIO scores; AUROC benign side uses LOIO scores.
+- **Dev selection (`python -m argus.eval.r1b`, 3 min):** only **one** of 16 configs reaches nested FPR ≤ 10%: **`ocsvm-nu0.10-quantile-global`** (nested FPR 9.5%, dev AUROC 0.935, DR-compliant 96.7%, DR-visible 33.3%, earliness vs rules +1.45 steps on attacks both catch). Runners-up at 10.2% (OC-SVM floored, nu 0.05/0.10, global) and 11.7% (R1 control OC-SVM).
+- **Findings stated before test v2 (predictions):**
+  1. **The FPR margin is thin** (9.5% vs the 10% bar; three configs within 2.6 pp).
+  2. **Residual false alarms are all in the secrets context:** selected config nested FPR = 0% plain, 0% egress, **66.7% secrets** (`secrets_audit_v2` 100%, `key_rotation_review` 33%). A legitimate secrets task of an unseen shape is usually flagged. If test v2 contains a larger share of novel legitimate secret work than dev (60/420 = 14%), **test FPR will likely exceed 10% and G4-R2 will likely fail**.
+  3. **Per-context thresholds (F2) made every config worse** (e.g. 10.2% → 21.2%): the secrets and egress contexts have only 2 intents each, so a nested per-context threshold rests on 30 trajectories of a single other intent. F2 as designed does not help at this data size.
+  4. Floored scaling / quantile transform (F3 grid) did help vs the R1 control (control OC-SVM nested FPR 11.7–15.2% with DR-compliant 68–83%).
+- **Not done on purpose:** no grid or rule change after seeing these dev results (forking paths). If G4-R2 fails, the stop rule applies (no RESCUE-3).
+
+---
+
 ## ADR-0006 — RESCUE-2: calibrate for unseen benign shapes, re-test on a blind split
 
 - **Date:** 2026-10-23
-- **Status:** accepted 2026-10-23 (user: "Approved. A teammate will write blind test v2"). Test v2 author: a teammate (not Claude), per `docs/TEST_V2_AUTHORING.md`.
+- **Status:** accepted 2026-10-23 (user: "Approved. A teammate will write blind test v2"). Test v2 author: originally a teammate; **changed by ADR-0008 to Claude (author-aware, not blind)**.
 - **Context:** R1 G4 failed only on the FPR condition (OC-SVM AUROC 0.990, FPR 32.2% on benign task shapes absent from dev). Test v1 is spent for confirmatory use.
 - **Decision:** (F1) compositional benign generator, ≥ 12 intents, ≥ 360 dev benign; (F2) per-scope-context thresholds; (F3) leave-one-intent-out calibration and a fixed 16-config grid with a fixed dev selection rule; (F4) stronger rules baseline B2+ = policy v3 (high-sensitivity reads require `secrets-audit`), reported as secondary. Features v2 stay frozen. Confirmatory re-test on a **new blind test split v2**, written by a teammate per `docs/TEST_V2_AUTHORING.md` (sealed Claude-authored fallback if unavailable, disclosed). G4-R2 uses the same numbers as G4.
 - **Stop rule:** no RESCUE-3. If G4-R2 fails: continue with ML as advisory ESCALATE only, or pivot to Alt A.
