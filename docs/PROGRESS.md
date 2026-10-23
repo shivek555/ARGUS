@@ -4,13 +4,14 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Current phase
 
-**Phase R1 (ML rescue) — in progress. R1-a/b/c/d done (2026-10-23); next R1-e/f (detectors + G4 run).** Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
+**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); test v2 being written blind by a teammate; R1b-2 in progress.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
 
 ## Roadmap (ADR-0003)
 
 | Phase | Focus | Gate | Status |
 |---|---|---|---|
-| R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **in progress** (R1-a/b/c/d done) |
+| R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
+| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-2) |
 | R2 | Live LLM intent monitor, cached replay, injection-safe | schema-validated, cannot override BLOCK | not started |
 | R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | full loop runs | not started |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | not started |
@@ -44,11 +45,17 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Next
 
-1. R1-e/f: IF + OC-SVM, validation threshold, runner → G4 report, then stop for decision.
+1. R1b-1 (teammate, parallel): blind test v2 per `docs/TEST_V2_AUTHORING.md` → `test-v2 freeze:` commit.
+2. R1b-2 (Claude): dev v2 compositional benign + policy v3 (B2+) → checkpoint: user reviews dev-v2 samples.
+3. R1b-3: LOIO calibration + 16-config grid, dev-only report, protocol commit (only after test v2 is frozen).
+2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks
 
-- **Early detection may fail (dev evidence, ADR-0004):** precursor prefixes look like benign on every feature (univariate AUROC ≈ 0.5). G4-c is at risk; G4-b (policy-compliant DR) is the realistic path.
+- **One-class calibration does not transfer to unseen benign task shapes** (R1: dev val FPR 5.6% → test 32.2%; `key_rotation_check` flagged 15/15). Any ML-in-the-loop design must handle legitimate-but-novel behaviour.
+- **Rules baseline may be a straw man:** part of what OC-SVM catches (unscoped high-sensitivity reads) could be a policy rule. Add a stronger B2+ rules baseline in R4.
+
+- **Earliness prediction was wrong (ADR-0004 said unlikely):** on test, OC-SVM flagged attacks 0.96 steps earlier than rules on attacks both caught (blocked from counting only by the FPR condition). Univariate dev diagnostics underestimated the multivariate signal.
 - **Length artefact:** benchmark templates put unsafe steps late; `step` excluded by default, length-matched control required in R1-f.
 
 - **ML viability**: Current bag-of-tools features cannot separate attack from benign prefixes. Root cause: features don't encode pre-attack behavioral patterns, only tool identity (which collapses to rules).
@@ -66,7 +73,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 | G1 agent E2E in sandbox | **PASS** (in-process; Docker deferred) |
 | G2 trajectory replay | **PASS** (replay_decisions tested) |
 | G3 benign vs unsafe distinguishable | **FAIL** for ML (AUROC=0.536); **PASS** for rules (100% DR) |
-| G4 ML beats rules on a defined metric | **FAILING** — rescue attempt needed |
+| G4 ML beats rules on a defined metric | **FAIL (R1, pre-registered)**: AUROC 0.990 ≥ 0.70 but FPR 32% > 10% |
 | G5 hybrid ≥ best component | not started |
 | G6 some unseen-family detection | not started |
 | G7 demo from clean checkout | not started |
@@ -89,6 +96,6 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 | R1-b | Scenario generator → bench v1 | M2 | **done** — `argus/bench/{steps,templates_dev,templates_test,generate,dataset}.py`; 420 trajectories (dev 240 / test 180), 3 families × {visible, compliant} + hard benign |
 | R1-c | Dev/test split, freeze hashes, leakage tests | M2 + M4 | **done** — test split frozen (hash in EXPERIMENTS.md), `.gitattributes` keeps bytes exact, 433 new tests |
 | R1-d | Trajectory features v2 | M1 | **done** — 36 default features / 6 groups (+ ablation-only `length`, `dlp`), 20 leakage/behaviour tests, dev diagnostic (ADR-0004) |
-| R1-e | IF + OC-SVM, validation threshold, 5 seeds | M1 | approved, not started |
-| R1-f | `python -m argus.eval.r1` + G4 report | M4 | approved, not started |
+| R1-e | IF + OC-SVM, validation threshold, 5 seeds | M1 | **done** — `argus/detectors/trajectory.py`; protocol ADR-0005 committed before test |
+| R1-f | `python -m argus.eval.r1` + G4 report | M4 | **done** — G4 FAIL; `docs/R1_RESULTS.md` |
 | W-1 | API + dashboard over PoC (ADR-0002) | M3 + M4 | **done** — read-only; hybrid/latency shown as TODO |

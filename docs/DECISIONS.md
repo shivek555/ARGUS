@@ -14,6 +14,18 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0006 — RESCUE-2: calibrate for unseen benign shapes, re-test on a blind split
+
+- **Date:** 2026-10-23
+- **Status:** accepted 2026-10-23 (user: "Approved. A teammate will write blind test v2"). Test v2 author: a teammate (not Claude), per `docs/TEST_V2_AUTHORING.md`.
+- **Context:** R1 G4 failed only on the FPR condition (OC-SVM AUROC 0.990, FPR 32.2% on benign task shapes absent from dev). Test v1 is spent for confirmatory use.
+- **Decision:** (F1) compositional benign generator, ≥ 12 intents, ≥ 360 dev benign; (F2) per-scope-context thresholds; (F3) leave-one-intent-out calibration and a fixed 16-config grid with a fixed dev selection rule; (F4) stronger rules baseline B2+ = policy v3 (high-sensitivity reads require `secrets-audit`), reported as secondary. Features v2 stay frozen. Confirmatory re-test on a **new blind test split v2**, written by a teammate per `docs/TEST_V2_AUTHORING.md` (sealed Claude-authored fallback if unavailable, disclosed). G4-R2 uses the same numbers as G4.
+- **Stop rule:** no RESCUE-3. If G4-R2 fails: continue with ML as advisory ESCALATE only, or pivot to Alt A.
+- **Alternatives:** move on to R2/R3 now with ML advisory; pivot to Alt A; re-tune on test v1 (rejected: selection on test).
+- **Why:** the failure is narrow (operating point, not signal) and has identifiable causes (narrow benign coverage, global threshold, calibration only on seen shapes). A blind split keeps any success claim valid.
+
+---
+
 ## ADR-0005 — R1-e/f evaluation protocol, fixed before the test split was opened
 
 - **Date:** 2026-10-23
