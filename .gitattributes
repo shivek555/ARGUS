@@ -1,0 +1,4 @@
+# Frozen benchmark data: hashes are over exact bytes, never convert line endings.
+argus/bench/v1/*.jsonl -text
+argus/bench/v1/manifest.json -text
+argus/bench/scenarios/*.yaml -text

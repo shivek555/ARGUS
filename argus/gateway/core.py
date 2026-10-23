@@ -7,7 +7,7 @@ from argus.events.builders import build_pre_event, redact_result
 from argus.events.schema import Event, Objective
 from argus.policy.engine import PolicyEngine
 from argus.sandbox.tools import ToolFn
-from argus.telemetry.log import JsonlLogger
+from argus.telemetry.log import EventSink
 
 Mode = Literal["enforce", "record"]
 
@@ -27,7 +27,7 @@ class Gateway:
         *,
         tools: dict[str, ToolFn],
         policy: PolicyEngine,
-        logger: JsonlLogger,
+        logger: EventSink,
         objective: Objective,
         agent_id: str,
         mode: Mode = "enforce",

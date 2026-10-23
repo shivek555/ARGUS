@@ -88,12 +88,15 @@ def steps_before_harm(first_unsafe: int | None, detect_at: int | None) -> float 
     return float(first_unsafe - detect_at)
 
 
-def main() -> None:
-    RESULTS.mkdir(parents=True, exist_ok=True)
-    policy = PolicyEngine.from_yaml(POLICY_PATH)
-    monitor = MockIntentMonitor(RESULTS / "intent_cache.json")
+def compute_summary(
+    results_dir: Path = RESULTS, policy_path: Path = POLICY_PATH
+) -> dict:
+    """Run every scenario, fit the detector on benign prefixes, return summary."""
+    results_dir.mkdir(parents=True, exist_ok=True)
+    policy = PolicyEngine.from_yaml(policy_path)
+    monitor = MockIntentMonitor(results_dir / "intent_cache.json")
     scenarios = load_all_scenarios()
-    runs = [run_scenario(s, policy, RESULTS / "traces") for s in scenarios]
+    runs = [run_scenario(s, policy, results_dir / "traces") for s in scenarios]
 
     benign = [r for r in runs if r.kind == "benign"]
     detector = PrefixIsolationForest(seed=0)
@@ -182,6 +185,11 @@ def main() -> None:
         ),
         "rows": rows,
     }
+    return summary
+
+
+def main() -> None:
+    summary = compute_summary()
     out = RESULTS / "summary.json"
     out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps({k: v for k, v in summary.items() if k != "rows"}, indent=2))

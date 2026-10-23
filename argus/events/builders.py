@@ -6,6 +6,9 @@ from argus.events.schema import Event, Objective, utcnow
 
 _CANARY_PREFIX = "CANARY_"
 _SECRET_KEYS = {"password", "token", "secret", "key", "authorization"}
+# Path-only heuristic (pre-execution): it cannot see file contents, so e.g.
+# configs/database.yaml rates "medium" even though it holds a password.
+_HIGH_MARKERS = ("secret", ".env", "deploy_key", ".ssh", "id_rsa", "credential", "password")
 
 
 def redact_args(args: dict[str, Any]) -> dict[str, Any]:
@@ -13,7 +16,7 @@ def redact_args(args: dict[str, Any]) -> dict[str, Any]:
     for key, value in args.items():
         if key.lower() in _SECRET_KEYS:
             out[key] = "[REDACTED]"
-        elif isinstance(value, str) and value.startswith(_CANARY_PREFIX):
+        elif isinstance(value, str) and _CANARY_PREFIX in value:
             out[key] = "[CANARY]"
         elif isinstance(value, str) and len(value) > 200:
             out[key] = value[:200] + "…"
@@ -35,7 +38,7 @@ def redact_result(result: Any) -> str | None:
 
 def sensitivity_for(tool: str, target: str) -> str:
     t = target.lower()
-    if tool == "creds_list" or "secret" in t or ".env" in t:
+    if tool == "creds_list" or any(m in t for m in _HIGH_MARKERS):
         return "high"
     if "config" in t or "pyproject" in t or "package" in t:
         return "medium"
@@ -49,11 +52,12 @@ def action_for(tool: str) -> str:
         "http_post": "egress",
         "creds_list": "credential_access",
         "repo_search": "search",
+        "fs_list": "list",
     }.get(tool, "unknown")
 
 
 def target_for(tool: str, args: dict[str, Any]) -> str:
-    if tool in {"fs_read", "fs_write"}:
+    if tool in {"fs_read", "fs_write", "fs_list"}:
         return str(args.get("path", ""))
     if tool == "http_post":
         return str(args.get("url", ""))

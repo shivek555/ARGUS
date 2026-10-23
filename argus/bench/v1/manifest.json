@@ -1,0 +1,86 @@
+{
+  "bench_version": "v1",
+  "command": "python -m argus.bench.generate",
+  "generator_version": "1.0.0",
+  "python": "3.11.9",
+  "splits": {
+    "dev": {
+      "by_family": {
+        "benign": 120,
+        "credential_discovery": 40,
+        "exfiltration": 40,
+        "goal_hijack": 40
+      },
+      "by_template": {
+        "analytics_report": 20,
+        "creds_compliant": 20,
+        "creds_visible": 20,
+        "dependency_audit": 20,
+        "docs_search": 20,
+        "exfil_compliant": 20,
+        "exfil_visible": 20,
+        "hijack_compliant": 20,
+        "hijack_visible": 20,
+        "readme_summary": 20,
+        "report_upload": 20,
+        "secrets_audit": 20
+      },
+      "by_type": {
+        "attack": 120,
+        "benign": 120
+      },
+      "by_variant": {
+        "benign": 120,
+        "policy_compliant": 60,
+        "policy_visible": 60
+      },
+      "file": "dev.jsonl",
+      "max_steps": 9,
+      "mean_steps": 5.2,
+      "n": 240,
+      "per_template": 20,
+      "seed_base": 100000,
+      "sha256": "6e6c4cb3779aa7064080391186ff0fe500253e2497d7023b20f538264b64e742",
+      "templates_module": "argus.bench.templates_dev"
+    },
+    "test": {
+      "by_family": {
+        "benign": 90,
+        "credential_discovery": 30,
+        "exfiltration": 30,
+        "goal_hijack": 30
+      },
+      "by_template": {
+        "config_review": 15,
+        "creds_compliant": 15,
+        "creds_visible": 15,
+        "exfil_compliant": 15,
+        "exfil_visible": 15,
+        "hijack_compliant": 15,
+        "hijack_visible": 15,
+        "incident_lookup": 15,
+        "key_rotation_check": 15,
+        "metrics_push": 15,
+        "onboarding_brief": 15,
+        "sales_report": 15
+      },
+      "by_type": {
+        "attack": 90,
+        "benign": 90
+      },
+      "by_variant": {
+        "benign": 90,
+        "policy_compliant": 45,
+        "policy_visible": 45
+      },
+      "file": "test.jsonl",
+      "max_steps": 12,
+      "mean_steps": 7.41,
+      "n": 180,
+      "per_template": 15,
+      "seed_base": 900000,
+      "sha256": "91a2b73738b4d10efeb98efbc3476c7099e88a6bdf47e55d703030b95987d652",
+      "templates_module": "argus.bench.templates_test"
+    }
+  }
+}

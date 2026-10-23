@@ -1,0 +1,10 @@
+# Policy v2 (Phase R1, ADR-0003). Baseline B2 for benchmark v1.
+# Authoritative. ML/LLM cannot override BLOCK. v0 results keep using poc.yaml.
+
+http_allowlist:
+  - "https://fake.local/api"
+http_require_scope: egress
+creds_require_scope: secrets-audit
+# fs_read / fs_write / fs_list outside this root are blocked (paths normalized,
+# so /workspace/../etc/passwd is outside).
+workspace_root: /workspace
