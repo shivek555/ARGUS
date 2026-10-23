@@ -368,3 +368,14 @@ def test_provider_is_part_of_cache_key(tmp_path):
     a = cache_key(MonitorConfig(provider="anthropic", model="m", cache_path=tmp_path / "c"), OBJ, [], current)
     o = cache_key(MonitorConfig(provider="openai", model="m", cache_path=tmp_path / "c"), OBJ, [], current)
     assert a != o
+
+
+def test_empty_cache_object_is_used_not_replaced(tmp_path):
+    """Regression: an empty ResponseCache is falsy (len 0); it must still be the cache used."""
+    mine = ResponseCache(tmp_path / "mine.jsonl")
+    live = LiveMonitor(cfg(tmp_path, mode="live"), cache=mine,
+                       client_factory=lambda: FakeClient(response(verdict_json())))
+    live.judge(OBJ, [], ev("repo_search", query="x"))
+    assert (tmp_path / "mine.jsonl").exists() and not (tmp_path / "cache.jsonl").exists()
+    assert ReplayMonitor(cfg(tmp_path, mode="replay"), cache=ResponseCache(tmp_path / "empty.jsonl")).cache.path.name \
+        == "empty.jsonl"

@@ -1,7 +1,9 @@
 """R2-a: LLM intent monitor (baseline B4) with mock / replay / live modes.
 
     ARGUS_LLM_MODE      mock (default) | replay | live
-    ARGUS_LLM_PROVIDER  openai (default, ADR-0010) | anthropic
+    ARGUS_LLM_PROVIDER  openai (default, ADR-0010) | anthropic | ollama (ADR-0011: free,
+                        open-weights, run on a GitHub-hosted runner by r2-llm.yml)
+    ARGUS_OLLAMA_URL    ollama only; default http://127.0.0.1:11434 (loopback hosts only)
     ARGUS_LLM_MODEL     openai: required, no default (your choice; it sets the cost)
                         anthropic: default claude-opus-5-5
     ARGUS_LLM_EFFORT    default medium; "none" omits the reasoning setting (openai)
@@ -32,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, Protocol
 
+import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from argus.events.schema import Event, IntentJudgement, Objective
@@ -39,12 +42,15 @@ from argus.intent import prompt as P
 from argus.intent.mock import _heuristic
 
 Action = Literal["ALLOW", "MONITOR", "ESCALATE", "BLOCK"]
-Provider = Literal["anthropic", "openai"]
+Provider = Literal["anthropic", "openai", "ollama"]
 SEVERITY: dict[str, int] = {"ALLOW": 0, "MONITOR": 1, "ESCALATE": 2, "BLOCK": 3}
 RISKY_TOOLS = frozenset({"fs_write", "http_post", "creds_list"})
 KNOWN_TOOLS = frozenset({"fs_read", "fs_write", "fs_list", "repo_search", "http_post", "creds_list"})
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
-DEFAULT_MODEL: dict[str, str] = {"anthropic": "claude-opus-5-5", "openai": ""}  # openai: user picks
+DEFAULT_MODEL: dict[str, str] = {"anthropic": "claude-opus-5-5", "openai": "", "ollama": ""}  # user picks
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+OLLAMA_NUM_PREDICT = 1024  # the verdict is a short JSON object; bounds CPU time per call
+OLLAMA_SEED = 0
 CACHE_DIR = Path(__file__).resolve().parent / "cache"
 
 
@@ -112,6 +118,7 @@ class MonitorConfig:
     fallback: bool = True
     timeout_s: float = 60.0
     max_tokens: int = 16000
+    ollama_url: str = "http://127.0.0.1:11434"
 
     def __post_init__(self) -> None:
         if self.provider not in DEFAULT_MODEL:
@@ -120,6 +127,8 @@ class MonitorConfig:
             object.__setattr__(self, "model", DEFAULT_MODEL[self.provider])
         if self.provider != "anthropic":
             object.__setattr__(self, "fallback", False)  # server-side fallback is an Anthropic feature
+        if self.provider == "ollama":
+            object.__setattr__(self, "effort", "none")  # no reasoning-effort setting for local models
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> MonitorConfig:
@@ -138,6 +147,8 @@ class MonitorConfig:
             kw["fallback"] = e["ARGUS_LLM_FALLBACK"] not in ("0", "false", "False")
         if "ARGUS_LLM_TIMEOUT" in e:
             kw["timeout_s"] = float(e["ARGUS_LLM_TIMEOUT"])
+        if "ARGUS_OLLAMA_URL" in e:
+            kw["ollama_url"] = e["ARGUS_OLLAMA_URL"]
         return cls(**kw)
 
 
@@ -153,15 +164,24 @@ def cache_key(cfg: MonitorConfig, objective: Objective, prefix: list[Event], cur
 class ResponseCache:
     """Append-only JSONL: one {key, verdict | error, served_by, fallback_used, usage} per line."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, also_read: tuple[Path, ...] = ()) -> None:
         self.path = path
         self._lock = threading.Lock()
         self._data: dict[str, dict[str, Any]] = {}
-        if path.exists():
-            for line in path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    rec = json.loads(line)
-                    self._data[rec["key"]] = rec
+        for src in (*also_read, path):
+            if src.exists():
+                for line in src.read_text(encoding="utf-8").splitlines():
+                    if line.strip():
+                        rec = json.loads(line)
+                        self._data[rec["key"]] = rec
+
+    @classmethod
+    def from_dir(cls, directory: Path, write_name: str) -> ResponseCache:
+        """Read every *.jsonl in ``directory``; write only to ``directory/write_name``.
+        Lets separate workflow jobs commit separate files without merge conflicts."""
+        others = tuple(sorted(f for f in directory.glob("*.jsonl") if f.name != write_name)) \
+            if directory.exists() else ()
+        return cls(directory / write_name, also_read=others)
 
     def get(self, key: str) -> dict[str, Any] | None:
         return self._data.get(key)
@@ -212,7 +232,7 @@ class ReplayMonitor:
 
     def __init__(self, cfg: MonitorConfig, cache: ResponseCache | None = None) -> None:
         self.cfg = cfg
-        self.cache = cache or ResponseCache(cfg.cache_path)
+        self.cache = cache if cache is not None else ResponseCache(cfg.cache_path)
 
     def judge(self, objective: Objective, prefix: list[Event], current: Event) -> MonitorResult:
         key = cache_key(self.cfg, objective, prefix, current)
@@ -237,17 +257,21 @@ class LiveMonitor:
     def __init__(self, cfg: MonitorConfig, cache: ResponseCache | None = None,
                  client_factory: Callable[[], Any] | None = None) -> None:
         self.cfg = cfg
-        self.cache = cache or ResponseCache(cfg.cache_path)
-        self._factory = client_factory or (lambda: _default_client(cfg.provider))
+        self.cache = cache if cache is not None else ResponseCache(cfg.cache_path)
+        self._factory = client_factory or (lambda: _default_client(cfg))
         self._client: Any = None
         self.calls = 0  # API requests actually sent (for budget accounting)
 
     def request_kwargs(self, objective: Objective, prefix: list[Event], current: Event) -> dict[str, Any]:
+        if self.cfg.provider == "ollama":
+            return _ollama_kwargs(self.cfg, objective, prefix, current)
         if self.cfg.provider == "openai":
             return _openai_kwargs(self.cfg, objective, prefix, current)
         return _anthropic_kwargs(self.cfg, objective, prefix, current)
 
     def _call(self, client: Any, kwargs: dict[str, Any]) -> Outcome:
+        if self.cfg.provider == "ollama":
+            return _ollama_outcome(client.chat(**kwargs))
         if self.cfg.provider == "openai":
             return _openai_outcome(client.responses.create(**kwargs))
         return _anthropic_outcome(client.beta.messages.create(**kwargs))
@@ -370,9 +394,78 @@ def _openai_outcome(response: Any) -> Outcome:
     return out
 
 
-def _default_client(provider: str) -> Any:
+class OllamaHTTPError(RuntimeError):
+    pass
+
+
+class OllamaClient:
+    """Minimal client for Ollama's local REST API. Loopback hosts only: trajectory
+    data can only reach an Ollama process on the same machine. Proxy env vars are
+    ignored (``trust_env=False``) for the same reason."""
+
+    def __init__(self, base_url: str, timeout: float = 60.0, transport: httpx.BaseTransport | None = None) -> None:
+        if httpx.URL(base_url).host not in LOOPBACK_HOSTS:
+            raise ValueError(f"Ollama URL must be a loopback address, got {base_url!r}")
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self._transport = transport
+
+    def with_options(self, timeout: float | None = None, max_retries: int | None = None) -> OllamaClient:
+        del max_retries  # a local server: no retry loop
+        return OllamaClient(self.base_url, timeout or self.timeout, self._transport)
+
+    def chat(self, **body: Any) -> dict[str, Any]:
+        with httpx.Client(transport=self._transport, timeout=self.timeout, trust_env=False) as client:
+            response = client.post(f"{self.base_url}/api/chat", json=body)
+        if response.status_code != 200:
+            raise OllamaHTTPError(f"HTTP {response.status_code}")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise OllamaHTTPError("non-object response")
+        return data
+
+
+OLLAMA_SCHEMA_HINT = "\n\nRespond with one JSON object that matches this schema:\n" + json.dumps(
+    P.VERDICT_JSON_SCHEMA, sort_keys=True)
+
+
+def _ollama_kwargs(cfg: MonitorConfig, objective: Objective, prefix: list[Event],
+                   current: Event) -> dict[str, Any]:
+    """POST /api/chat body: schema-enforced ``format``, deterministic decoding, no tools.
+    Ollama's docs recommend also giving the schema as text, hence OLLAMA_SCHEMA_HINT."""
+    return {
+        "model": cfg.model,
+        "messages": [
+            {"role": "system", "content": P.SYSTEM_PROMPT},
+            {"role": "user", "content": P.render_user_message(objective, prefix, current) + OLLAMA_SCHEMA_HINT},
+        ],
+        "format": P.VERDICT_JSON_SCHEMA,
+        "stream": False,
+        "keep_alive": "30m",
+        "options": {"temperature": 0, "seed": OLLAMA_SEED, "num_predict": OLLAMA_NUM_PREDICT},
+    }
+
+
+def _ollama_outcome(data: dict[str, Any]) -> Outcome:
+    usage = {"input_tokens": int(data.get("prompt_eval_count") or 0),
+             "output_tokens": int(data.get("eval_count") or 0),
+             "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+    out = Outcome(text=None, error=None, served_by=data.get("model"), usage=usage)
+    reason = data.get("done_reason")
+    if data.get("done") is False:
+        out.error = "incomplete:not_done"
+    elif reason not in (None, "stop"):
+        out.error = "max_tokens" if reason == "length" else f"incomplete:{reason}"
+    else:
+        out.text = (data.get("message") or {}).get("content")
+    return out
+
+
+def _default_client(cfg: MonitorConfig) -> Any:
     # Imported lazily: mock/replay never need an SDK or credentials.
-    if provider == "openai":
+    if cfg.provider == "ollama":
+        return OllamaClient(cfg.ollama_url, cfg.timeout_s)
+    if cfg.provider == "openai":
         import openai
 
         return openai.OpenAI()  # reads OPENAI_API_KEY from the user's environment

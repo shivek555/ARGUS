@@ -14,6 +14,24 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0011 — R2 live runs on a free open-weights model (Ollama on a GitHub-hosted runner), reduced scope
+
+- **Date:** 2026-10-23
+- **Status:** accepted 2026-10-23. Built (R2L-a): `ollama` provider in `argus/intent/monitor.py` (loopback-only `OllamaClient`, `temperature 0`, `seed 0`, schema in `format` and as prompt text, fail closed on non-200/incomplete/invalid JSON); `argus/eval/r2_local.py` (smoke/pilot/dev/catalog, risky-call scope, shards, time cap, resumable per-job cache files, determinism re-check, `choose_model` rule); `.github/workflows/r2-llm.yml` (manual, no secrets, Ollama 0.40.2 pinned, commits results back). Measured scope: pilot 141, dev 307, catalog 174 judgements. Also fixed a latent bug: an empty `ResponseCache` passed to a monitor was ignored because it is falsy.
+- **Context:** the user requires R2 to be **free** and wants **nothing downloaded on their PC**. OpenAI and Claude APIs are pay-per-token; the laptop (8.3 GB RAM, no GPU) would need Ollama and model downloads. GitHub-hosted runners for public repos are free and unlimited: 4 CPU, 16 GB RAM, 14 GB SSD, 6 h per job (GitHub docs, checked 2026-10-23). The repo is public.
+- **Decision (proposed):**
+  - **Where:** a manual `workflow_dispatch` workflow (`.github/workflows/r2-llm.yml`) installs a pinned Ollama on the runner, pulls the model, runs the monitor, and commits the response cache + summary back to the branch. No secrets; nothing runs on the user's PC; the user starts runs with "Run workflow".
+  - **Adapter:** a third provider, `ollama`: REST API on localhost only (the runner itself), schema-enforced `format`, `temperature: 0`, no new Python dependency (httpx).
+  - **Candidates:** `llama3.2:3b` and `qwen2.5:3b`, chosen on the dev pilot by a fixed rule (valid JSON ≥ 95%, then AUROC, then latency). `gpt-oss:20b` excluded: 14 GB download does not fit the runner's 14 GB disk.
+  - **Scope:** judge **risky calls only**, about 1–2k judgements instead of about 11.8k.
+  - **Run limits:** a wall-clock cap (default 5 h 20 min, under the 6 h job limit) replaces the dollar cap; long runs are sharded and resume from the cache.
+  - **Unchanged:** L1–L6 and the test-v2-once rule.
+- **Expected and accepted:** lower judgement quality than frontier APIs, and L5 latency likely failing on CPU. Both are reported as RQ4/RQ5 findings.
+- **Supersedes:** ADR-0010's "OpenAI is the default for live runs". The OpenAI and Claude adapters remain for anyone with a key.
+- **Alternatives:** OpenAI `gpt-6-luna` (pilot ≈ $0.10, full plan ≈ $3–6; rejected because not free); no LLM at all, keeping the mock heuristic (rejected: R2 would answer nothing).
+
+---
+
 ## ADR-0010 — R2 live monitor provider switched to OpenAI (Claude adapter kept)
 
 - **Date:** 2026-10-23
