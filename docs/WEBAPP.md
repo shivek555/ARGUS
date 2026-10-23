@@ -9,7 +9,7 @@ See ADR-0002 for why it exists before G4 and what it deliberately does not do.
 Requirements: Python 3.11+, Node 18+ (tested with Node 24).
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -c constraints.txt
 npm --prefix dashboard ci
 python -m argus.eval.poc        # optional: writes the logged run the Experiments page reads
 make serve                      # builds dashboard/dist, serves UI + API on http://127.0.0.1:8000

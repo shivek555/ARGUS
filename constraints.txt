@@ -1,0 +1,32 @@
+# Full dependency lock (direct + transitive), Python 3.11.9, 2026-10-23.
+# Used as `pip install -r requirements.txt -c constraints.txt` locally and in CI,
+# so CI resolves exactly what produced the logged results. scipy / joblib /
+# threadpoolctl matter for scikit-learn numerics. colorama only installs on Windows.
+# Regenerate after an intentional upgrade, then re-run `make test` and note it in
+# docs/EXPERIMENTS.md (results may shift).
+annotated-types==0.7.0
+anyio==4.13.0
+certifi==2026.10.19
+click==8.3.1
+colorama==0.4.6
+fastapi==0.115.11
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.11
+iniconfig==2.3.0
+joblib==1.5.3
+numpy==2.4.4
+packaging==26.2
+pluggy==1.6.0
+pydantic==2.10.6
+pydantic-core==2.27.2
+pygments==2.20.0
+pytest==9.1.1
+pyyaml==6.0.3
+scikit-learn==1.8.0
+scipy==1.17.1
+starlette==0.46.2
+threadpoolctl==3.6.0
+typing-extensions==4.15.0
+uvicorn==0.34.0

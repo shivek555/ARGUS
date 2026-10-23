@@ -34,6 +34,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 - [x] 8/8 tests passing (gateway bypass, no-network, label leak, replay)
 - [x] Bugfix: syntax error in tools.py (mismatched quote), unused Gateway import in prefix.py
 - [x] Benign task catalog check (2026-10-23, exploratory): 27 categories × 8 legit agent tasks; 0 policy blocks; R1b-selected detector false alarms 6% vs R1 detector 34%; residual alarms = requested file edits. `docs/BENIGN_CATALOG.md`.
+- [x] Dependencies pinned (2026-10-23): exact pins in `requirements.txt`, full transitive lock in `constraints.txt` (26 packages, Python 3.11.9); CI installs the lock on Python 3.11.9; `tests/test_dependency_lock.py` keeps files consistent and checks the numerics stack matches.
 - [x] CI (2026-10-23): `.github/workflows/ci.yml` — pytest (mock LLM mode), byte-identical regeneration checks for bench v1 / dev v2 / test v2 (once frozen), dashboard typecheck + build + npm audit. **First GitHub run green** (2026-10-23, commit `64eea66`, run 39919602781): all 701 tests pass on Linux and every frozen benchmark regenerates byte-identically there, so the bench files are reproducible across OSes.
 - [x] Web app (ADR-0002, 2026-10-23): FastAPI `argus/api/` + React/TS `dashboard/` — overview, scenario drill-down, enforce-mode gateway playground, experiments/provenance. 33/33 tests (25 new API/security tests). See `docs/WEBAPP.md`.
 
@@ -58,7 +59,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 - **G4-R2 likely to fail on the FPR condition (ADR-0007, predicted before test v2):** selected config's nested FPR is 0% for plain/egress tasks but 66.7% for unseen legitimate secrets tasks; margin to the 10% bar is 0.5 pp.
 
 - **Test v2 is only partially blind (ADR-0008):** written by the project owner, who has seen high-level detector results. Analysis was fixed first, but author bias in scenario design is uncontrolled; report G4-R2 as an author-aware sealed test.
-- **Repo is public** (https://github.com/shivek555/ARGUS): only synthetic canaries are committed, but teammate-authored test v2 will be readable by anyone, including the detector side; blindness rests on discipline + `tests/test_blindness.py`. Python deps in `requirements.txt` are lower bounds, not pins: a future scikit-learn/FastAPI release could change behaviour in CI before it does locally.
+- **Repo is public** (https://github.com/shivek555/ARGUS): only synthetic canaries are committed, but teammate-authored test v2 will be readable by anyone, including the detector side; blindness rests on discipline + `tests/test_blindness.py`.
 
 - **B2+ closes much of the gap (dev evidence):** policy v3 blocks all dev credential/exfil policy-compliant attacks; ML's distinct value vs B2+ may be limited to objective-relative tampering. Will be reported as the secondary comparison in R1b.
 

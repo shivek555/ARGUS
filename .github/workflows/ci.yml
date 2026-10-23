@@ -27,15 +27,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Benchmark files were generated on CPython 3.11; regeneration checks pin it.
+      # Same interpreter and locked packages as the machine that produced the
+      # logged results (requirements.txt + constraints.txt).
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.11.9"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
 
-      - name: Install
-        run: python -m pip install -r requirements.txt
+      - name: Install (locked)
+        run: python -m pip install -r requirements.txt -c constraints.txt
+
+      - name: Record installed versions
+        run: python -m pip freeze
 
       - name: Tests (unit, integration, security)
         run: python -m pytest -q

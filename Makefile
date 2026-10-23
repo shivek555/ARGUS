@@ -1,4 +1,7 @@
-.PHONY: test poc api dashboard-install dashboard-dev dashboard-build serve
+.PHONY: install test poc api dashboard-install dashboard-dev dashboard-build serve
+
+install:
+	python -m pip install -r requirements.txt -c constraints.txt
 
 test:
 	python -m pytest -q
