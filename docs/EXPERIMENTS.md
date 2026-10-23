@@ -21,6 +21,7 @@ Copied from `docs/FEASIBILITY.md` §8 (S1–S5). Do not edit after the first rea
 |---|---|---|---|---|---|
 | poc-v1 | 2026-10-11 | IF seed=0 | `python -m argus.eval.poc` | `eval/results/poc/summary.json` | Baseline PoC. 10 scenarios, 12D bag-of-tools features. AUROC=0.536. |
 | r1-dev-diag | 2026-10-23 | deterministic | `python -m argus.eval.r1_dev_diag` | `eval/results/r1/dev_feature_diag.json` | **Dev split only**, univariate per-feature AUROC (design aid, not G4). 577 benign / 258 unsafe (133 policy-compliant) / 414 precursor prefixes. Findings in ADR-0004. |
+| r1-dev | 2026-10-23 | IF 0–4; OC-SVM det. | `python -m argus.eval.r1 --dev-only` | `eval/results/r1/dev_summary.json` | Dev only (val benign 36 + dev attacks 120). Rules DR 50% / FPR 0; IF AUROC 0.769±0.005, DR 21%, FPR 7.8%; OC-SVM AUROC 1.000, DR 100%, FPR 5.6% → primary. ADR-0005. |
 
 ## PoC (7-day) results
 
