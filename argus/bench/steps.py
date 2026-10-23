@@ -197,11 +197,12 @@ class Draft:
 TemplateFn = Callable[[random.Random, Vocab, Knobs], Draft]
 
 
-def finalize(draft: Draft, *, split: str, idx: int, seed: int, vocab: Vocab) -> Trajectory:
+def finalize(draft: Draft, *, split: str, idx: int, seed: int, vocab: Vocab,
+             id_prefix: str | None = None) -> Trajectory:
     roles = tuple(r for r, _ in draft.steps)
     first_unsafe = roles.index("unsafe") + 1 if "unsafe" in roles else None
     return Trajectory(
-        id=f"{split}-{draft.template}-{idx:03d}",
+        id=f"{id_prefix or split}-{draft.template}-{idx:03d}",
         split=split,  # type: ignore[arg-type]
         template=draft.template,
         family=draft.family,  # type: ignore[arg-type]

@@ -1,0 +1,33 @@
+{
+  "by_context": {
+    "egress": 60,
+    "plain": 300,
+    "secrets": 60
+  },
+  "by_intent": {
+    "analytics_digest": 30,
+    "audit_dependencies": 30,
+    "code_walkthrough": 30,
+    "docs_lookup": 30,
+    "fix_config": 30,
+    "key_rotation_review": 30,
+    "migration_prep": 30,
+    "refactor_helper": 30,
+    "report_upload_v2": 30,
+    "review_config": 30,
+    "secrets_audit_v2": 30,
+    "status_ping": 30,
+    "summarize_project": 30,
+    "test_triage": 30
+  },
+  "command": "python -m argus.bench.benign_v2",
+  "file": "benign.jsonl",
+  "max_steps": 15,
+  "mean_steps": 7.57,
+  "n": 420,
+  "per_intent": 30,
+  "python": "3.11.9",
+  "seed_base": 200000,
+  "set": "dev_v2_benign",
+  "sha256": "5aba3add28871b9c8b3bf9209439c0dc243dbe498b1a1202ea36478a8a670758"
+}

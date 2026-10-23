@@ -4,14 +4,14 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Current phase
 
-**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); test v2 being written blind by a teammate; R1b-2 in progress.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
+**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); test v2 being written blind by a teammate; R1b-2 done (2026-10-23) — checkpoint: user reviews `docs/DEV_V2.md`.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
 
 ## Roadmap (ADR-0003)
 
 | Phase | Focus | Gate | Status |
 |---|---|---|---|
 | R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
-| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-2) |
+| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-2 done; waiting on test v2 + review) |
 | R2 | Live LLM intent monitor, cached replay, injection-safe | schema-validated, cannot override BLOCK | not started |
 | R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | full loop runs | not started |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | not started |
@@ -46,11 +46,13 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 ## Next
 
 1. R1b-1 (teammate, parallel): blind test v2 per `docs/TEST_V2_AUTHORING.md` → `test-v2 freeze:` commit.
-2. R1b-2 (Claude): dev v2 compositional benign + policy v3 (B2+) → checkpoint: user reviews dev-v2 samples.
+2. R1b-2 **done**: dev v2 benign (420, 14 intents), policy v3, `--split test_v2` generator mode, blindness guard. Checkpoint: review `docs/DEV_V2.md`.
 3. R1b-3: LOIO calibration + 16-config grid, dev-only report, protocol commit (only after test v2 is frozen).
 2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks
+
+- **B2+ closes much of the gap (dev evidence):** policy v3 blocks all dev credential/exfil policy-compliant attacks; ML's distinct value vs B2+ may be limited to objective-relative tampering. Will be reported as the secondary comparison in R1b.
 
 - **One-class calibration does not transfer to unseen benign task shapes** (R1: dev val FPR 5.6% → test 32.2%; `key_rotation_check` flagged 15/15). Any ML-in-the-loop design must handle legitimate-but-novel behaviour.
 - **Rules baseline may be a straw man:** part of what OC-SVM catches (unscoped high-sensitivity reads) could be a policy rule. Add a stronger B2+ rules baseline in R4.

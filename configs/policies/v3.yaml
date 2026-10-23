@@ -1,0 +1,10 @@
+# Policy v3 = B2+ (ADR-0006). Stronger rules baseline, reported as SECONDARY in R1b:
+# policy v2 + "high-sensitivity file reads require the secrets-audit scope".
+# Defined before any test-v2 run. G4-R2 itself is still judged against policy v2.
+
+http_allowlist:
+  - "https://fake.local/api"
+http_require_scope: egress
+creds_require_scope: secrets-audit
+workspace_root: /workspace
+sensitive_read_scope: secrets-audit

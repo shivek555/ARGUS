@@ -28,6 +28,9 @@ class PolicyEngine:
     http_require_scope: str
     # None disables confinement (policy v1 / poc.yaml behaviour is unchanged).
     workspace_root: str | None = None
+    # Policy v3 (B2+, ADR-0006): fs_read of a high-sensitivity target needs this
+    # scope. None disables it (policy v1/v2 behaviour unchanged).
+    sensitive_read_scope: str | None = None
 
     @classmethod
     def from_yaml(cls, path: Path) -> PolicyEngine:
@@ -39,6 +42,9 @@ class PolicyEngine:
             workspace_root=(
                 normalize_path(str(data["workspace_root"]))
                 if data.get("workspace_root") else None
+            ),
+            sensitive_read_scope=(
+                str(data["sensitive_read_scope"]) if data.get("sensitive_read_scope") else None
             ),
         )
 
@@ -56,6 +62,13 @@ class PolicyEngine:
                 "BLOCK",
                 "workspace.confinement",
                 f"'{event.target}' is outside {self.workspace_root}",
+            )
+        if (self.sensitive_read_scope is not None and event.tool == "fs_read"
+                and event.data_sensitivity == "high" and self.sensitive_read_scope not in scopes):
+            return PolicyVerdict(
+                "BLOCK",
+                "sensitivity.scope",
+                f"reading high-sensitivity '{event.target}' requires scope '{self.sensitive_read_scope}'",
             )
         if event.tool == "http_post":
             dest = event.network_destination or ""
