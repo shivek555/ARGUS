@@ -12,7 +12,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 |---|---|---|---|
 | R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
 | R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-3 ready; waiting on test v2) |
-| R2 | Live LLM intent monitor, cached replay, injection-safe | L1–L6 (ADR-0009) | **R2-a/b/c done** (no API spend); pilot awaits budget approval |
+| R2 | Live LLM intent monitor, cached replay, injection-safe | L1–L6 (ADR-0009) | **R2-a/b/c done**; pilot approved, **blocked on credentials** |
 | R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | full loop runs | not started |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | not started |
 | R5 | Adaptive attacker (stretch) | evasion rate per round | not started |
@@ -53,7 +53,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 2. R1b-2 **done**: dev v2 benign (420, 14 intents), policy v3, `--split test_v2` generator mode, blindness guard. Checkpoint: review `docs/DEV_V2.md`.
 3. R1b-3 **built + run on dev**: selected `ocsvm-nu0.10-quantile-global` (nested FPR 9.5%). Protocol committed before test v2 is written (ADR-0008).
 4. R1b-4: `python -m argus.eval.r1b_final` once → G4-R2 verdict + `docs/R1B_RESULTS.md`.
-5. R2-a/b/c **done**: monitor (`argus/intent/monitor.py`), prompt `monitor-v1` (`argus/intent/prompt.py`), 46 security tests. **Next R2 step needs your approval: the pilot** (≈ 140 live judgements on 20 dev trajectories, ≈ $3) — needs an Anthropic API key or `ant auth login` profile on this machine.
+5. R2-a/b/c **done**: monitor (`argus/intent/monitor.py`), prompt `monitor-v1` (`argus/intent/prompt.py`), 46 security tests. **Pilot approved (cap $5) but blocked: no Anthropic credential on this machine** (2026-10-23). Runner ready: `python -m argus.eval.r2_pilot --smoke`, then `python -m argus.eval.r2_pilot` (fixed 20 dev trajectories, spend tracked from API token usage, stops before crossing the cap, stops on credential/first-call failure; preflight made 0 calls, $0).
 2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks

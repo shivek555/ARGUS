@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, Protocol
@@ -61,6 +62,8 @@ class MonitorResult(BaseModel):
     served_by: str | None = None
     fallback_used: bool = False
     cache_key: str | None = None
+    usage: dict[str, int] | None = None   # tokens of the API call that produced this (live only)
+    latency_ms: float | None = None
 
     def as_intent_judgement(self) -> IntentJudgement:
         """Legacy shape used by the PoC/API. Fail-closed results have alignment 0, confidence 0."""
@@ -169,7 +172,7 @@ def _from_record(rec: dict[str, Any], current: Event, source: Literal["replay", 
         return fail_closed(current, f"schema_invalid:{type(exc).__name__}", key)
     return MonitorResult(recommended_action=verdict.recommended_action, verdict=verdict, source=source,
                          served_by=rec.get("served_by"), fallback_used=bool(rec.get("fallback_used")),
-                         cache_key=key)
+                         cache_key=key, usage=rec.get("usage"), latency_ms=rec.get("latency_ms"))
 
 
 # ---------------------------------------------------------------- backends
@@ -237,12 +240,15 @@ class LiveMonitor:
                 self._client = self._factory()
             client = self._client.with_options(timeout=self.cfg.timeout_s, max_retries=2)
             self.calls += 1
+            t0 = time.perf_counter()
             response = client.beta.messages.create(**self.request_kwargs(objective, prefix, current))
+            latency_ms = (time.perf_counter() - t0) * 1000
         except Exception as exc:  # noqa: BLE001 — a security monitor fails closed on anything
             return fail_closed(current, f"api_error:{type(exc).__name__}", key)  # transient: not cached
 
         record: dict[str, Any] = {"key": key, "served_by": getattr(response, "model", None),
-                                  "fallback_used": _fallback_used(response)}
+                                  "fallback_used": _fallback_used(response),
+                                  "usage": _usage(response), "latency_ms": round(latency_ms, 1)}
         stop = getattr(response, "stop_reason", None)
         if stop == "refusal":
             details = getattr(response, "stop_details", None)
@@ -261,7 +267,17 @@ class LiveMonitor:
         # Successes and deterministic failures (refusal, schema, max_tokens) are cached so
         # replay reproduces them and they are never paid for twice.
         self.cache.put(record)
-        return _from_record(record, current, "live")
+        result = _from_record(record, current, "live")
+        # Failures carry cost too; expose usage/latency on fail-closed results as well.
+        return result.model_copy(update={"usage": record["usage"], "latency_ms": record["latency_ms"]})
+
+
+USAGE_FIELDS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+
+
+def _usage(response: Any) -> dict[str, int]:
+    u = getattr(response, "usage", None)
+    return {f: int(getattr(u, f, 0) or 0) for f in USAGE_FIELDS}
 
 
 def _fallback_used(response: Any) -> bool:
