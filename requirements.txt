@@ -9,3 +9,5 @@ fastapi==0.115.11
 uvicorn==0.34.0
 pytest==9.1.1
 httpx==0.28.1
+# R2 LLM intent monitor (live mode only; mock/replay never import it)
+anthropic==2.1.0

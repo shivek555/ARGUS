@@ -6,3 +6,4 @@ argus/bench/dev_v2/*.jsonl -text
 argus/bench/dev_v2/manifest.json -text
 argus/bench/v2_test/*.jsonl -text
 argus/bench/v2_test/manifest.json -text
+argus/intent/cache/*.jsonl -text

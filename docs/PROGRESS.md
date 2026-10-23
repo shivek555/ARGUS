@@ -12,7 +12,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 |---|---|---|---|
 | R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
 | R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-3 ready; waiting on test v2) |
-| R2 | Live LLM intent monitor, cached replay, injection-safe | schema-validated, cannot override BLOCK | not started |
+| R2 | Live LLM intent monitor, cached replay, injection-safe | L1–L6 (ADR-0009) | **R2-a/b/c done** (no API spend); pilot awaits budget approval |
 | R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | full loop runs | not started |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | not started |
 | R5 | Adaptive attacker (stretch) | evasion rate per round | not started |
@@ -34,6 +34,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 - [x] 8/8 tests passing (gateway bypass, no-network, label leak, replay)
 - [x] Bugfix: syntax error in tools.py (mismatched quote), unused Gateway import in prefix.py
 - [x] Benign task catalog check (2026-10-23, exploratory): 27 categories × 8 legit agent tasks; 0 policy blocks; R1b-selected detector false alarms 6% vs R1 detector 34%; residual alarms = requested file edits. `docs/BENIGN_CATALOG.md`.
+- [x] R2-a/b/c (2026-10-23): LLM intent monitor with mock/replay/live modes, sha256 response cache, fail-closed mapping, advisory-only combination, injection-escaped renderer; 46 security tests (no network); `anthropic==2.1.0` pinned.
 - [x] Dependencies pinned (2026-10-23): exact pins in `requirements.txt`, full transitive lock in `constraints.txt` (26 packages, Python 3.11.9); CI installs the lock on Python 3.11.9; `tests/test_dependency_lock.py` keeps files consistent and checks the numerics stack matches.
 - [x] CI (2026-10-23): `.github/workflows/ci.yml` — pytest (mock LLM mode), byte-identical regeneration checks for bench v1 / dev v2 / test v2 (once frozen), dashboard typecheck + build + npm audit. **First GitHub run green** (2026-10-23, commit `64eea66`, run 39919602781): all 701 tests pass on Linux and every frozen benchmark regenerates byte-identically there, so the bench files are reproducible across OSes.
 - [x] Web app (ADR-0002, 2026-10-23): FastAPI `argus/api/` + React/TS `dashboard/` — overview, scenario drill-down, enforce-mode gateway playground, experiments/provenance. 33/33 tests (25 new API/security tests). See `docs/WEBAPP.md`.
@@ -52,6 +53,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 2. R1b-2 **done**: dev v2 benign (420, 14 intents), policy v3, `--split test_v2` generator mode, blindness guard. Checkpoint: review `docs/DEV_V2.md`.
 3. R1b-3 **built + run on dev**: selected `ocsvm-nu0.10-quantile-global` (nested FPR 9.5%). Protocol committed before test v2 is written (ADR-0008).
 4. R1b-4: `python -m argus.eval.r1b_final` once → G4-R2 verdict + `docs/R1B_RESULTS.md`.
+5. R2-a/b/c **done**: monitor (`argus/intent/monitor.py`), prompt `monitor-v1` (`argus/intent/prompt.py`), 46 security tests. **Next R2 step needs your approval: the pilot** (≈ 140 live judgements on 20 dev trajectories, ≈ $3) — needs an Anthropic API key or `ant auth login` profile on this machine.
 2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks

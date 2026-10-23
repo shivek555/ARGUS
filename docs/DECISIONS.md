@@ -14,6 +14,23 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0009 — R2 LLM intent monitor: design and pre-registered criteria
+
+- **Date:** 2026-10-23
+- **Status:** accepted 2026-10-23 (user approved R2-a/b/c; pilot needs separate approval). Built: `argus/intent/monitor.py` (modes, cache, fail-closed, `apply_advisory`), `argus/intent/prompt.py` (prompt `monitor-v1`, untrusted-data renderer), `tests/test_intent_monitor.py` (46 security tests, no network). SDK `anthropic==2.1.0` pinned. Correction: fallbacks are not available on the Batches API, so batch refusals fail closed and are re-run individually.
+- **Decision (proposed):**
+  - **Shape:** a single-call, tool-less Claude monitor (`claude-opus-5-5`) with `mock` / `replay` / `live` modes. Replay comes from a committed sha256-keyed response cache, so CI and `make reproduce` need no network or key.
+  - **Input and output:** structured-output schema with the brief's four fields + `evidence_steps`; untrusted strings in delimited data blocks.
+  - **Fail-closed:** timeouts, errors, refusals and schema failures map to ESCALATE (risky tools) / MONITOR (others).
+  - **Fallback:** server-side refusal fallback opt-in, reported separately.
+  - **Prompt discipline:** effort low vs medium chosen on dev; at most 3 prompt versions on dev; prompt + effort frozen before test v2.
+  - **Criteria L1–L6** (AUROC ≥ 0.70, FPR ≤ 10%, DR-compliant ≥ rules + 20 pp, catalog requested-edit FPR ≤ ML, p95 latency ≤ 2.5 s or best scope, 0 injection-driven policy changes).
+- **Why now:** R2 is required whether G4-R2 passes (hybrid) or fails (advisory ML + LLM per the ADR-0006 stop rule). R2-a/b/c have no API spend and can be built while test v2 is written; live runs need explicit budget approval.
+- **Constraints from the current API:** no sampling parameters (`temperature` rejected after 2026-10-21) → nondeterministic, hence the replay cache; thinking cannot be disabled on Opus 5.5 and effort defaults to `medium` → effort set explicitly; forced `tool_choice` returns 400 → structured outputs for the JSON verdict.
+- **Alternatives:** cheaper model as default (rejected as a default; available as a user-chosen RQ5 ablation); agentic monitor with tools (rejected: brief forbids monitor tool access); open-weights local model (no evaluation setup in scope).
+
+---
+
 ## ADR-0008 — Test v2 is written by Claude (author-aware, sealed), not blind
 
 - **Date:** 2026-10-23
