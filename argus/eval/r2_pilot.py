@@ -35,13 +35,23 @@ OUT = ROOT / "eval" / "results" / "r2" / "pilot.json"
 DEFAULT_CAP_USD = 5.0
 MIN_RESERVE_USD = 0.10
 
-# $ per million tokens: input, output, cache write, cache read (claude-api skill, cached 2026-10-06).
-# Fallback models may serve some calls; unknown models are priced at the most expensive row.
+# $ per million tokens: input, output, cache write, cache read.
+# Anthropic: claude-api skill (cached 2026-10-06). OpenAI: developers.openai.com/api/docs/pricing,
+# standard tier, read 2026-10-23 (no separate cache-write price → listed as the input price; the
+# OpenAI adapter reports cache writes as 0 and cached reads separately).
+# Unknown models are priced at the most expensive row, so the cap stays conservative.
 PRICES: dict[str, tuple[float, float, float, float]] = {
     "claude-opus-5-5": (4.00, 20.00, 5.00, 0.20),
     "claude-opus-5": (5.00, 25.00, 6.25, 0.50),
     "claude-opus-4-8": (5.00, 25.00, 6.25, 0.50),
     "claude-sonnet-5-5": (2.00, 10.00, 2.50, 0.20),
+    "gpt-6-astra": (10.00, 50.00, 10.00, 1.00),
+    "gpt-6.1-sol": (2.00, 10.00, 2.00, 0.10),
+    "gpt-6-sol": (2.00, 10.00, 2.00, 0.20),
+    "gpt-6-luna": (0.10, 0.50, 0.10, 0.01),
+    "gpt-5.6-sol": (4.00, 20.00, 4.00, 0.40),
+    "gpt-5.6-terra": (2.00, 12.00, 2.00, 0.20),
+    "gpt-5.6-luna": (0.20, 1.20, 0.20, 0.02),
 }
 WORST = max(PRICES.values())
 
@@ -68,9 +78,11 @@ def cost_usd(usage: dict[str, int] | None, model: str | None) -> float:
             + usage.get("cache_read_input_tokens", 0) * p_cr) / 1_000_000
 
 
-def credentials_available(env: dict[str, str] | None = None) -> bool:
-    """Same sources the SDK resolves, checked without a network call."""
+def credentials_available(env: dict[str, str] | None = None, provider: str = "anthropic") -> bool:
+    """Same sources the provider's SDK resolves, checked without a network call."""
     e = os.environ if env is None else env
+    if provider == "openai":
+        return bool(e.get("OPENAI_API_KEY"))
     if e.get("ANTHROPIC_API_KEY") or e.get("ANTHROPIC_AUTH_TOKEN"):
         return True
     dirs = [e.get("ANTHROPIC_CONFIG_DIR"), str(Path.home() / ".config" / "anthropic")]
@@ -114,9 +126,12 @@ def run(cap: float = DEFAULT_CAP_USD, limit: int | None = None, smoke: bool = Fa
     trajs = select_trajectories()[: (1 if smoke else limit)]
     rows: list[dict[str, Any]] = []
     stopped: str | None = None
-    if client_factory is None and not credentials_available():
-        stopped = ("credentials: none found (set ANTHROPIC_API_KEY or run `ant auth login`); "
-                   "no API call was made")
+    if not cfg.model:
+        stopped = "config: ARGUS_LLM_MODEL is not set (choose a model); no API call was made"
+        trajs = []
+    elif client_factory is None and not credentials_available(provider=cfg.provider):
+        hint = "set OPENAI_API_KEY" if cfg.provider == "openai" else "set ANTHROPIC_API_KEY or run `ant auth login`"
+        stopped = f"credentials: none found ({hint}); no API call was made"
         trajs = []
 
     for t in trajs:

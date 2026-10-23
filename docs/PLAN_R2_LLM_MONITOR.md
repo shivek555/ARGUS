@@ -8,6 +8,8 @@
 
 ---
 
+> **Provider update (ADR-0010):** live runs now default to **OpenAI** (Responses API, strict structured output, `OPENAI_API_KEY`, model chosen by the user via `ARGUS_LLM_MODEL`). The Claude adapter described below remains available. Claude-specific items (server-side refusal fallback, Anthropic cache breakpoints, `claude-opus-5-5` pricing) apply only when `ARGUS_LLM_PROVIDER=anthropic`.
+
 ## 1. Why R2, and what it must answer
 
 Evidence so far:

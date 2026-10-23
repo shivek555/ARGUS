@@ -29,6 +29,8 @@ def ev(tool, step=1, **args):
 
 
 def cfg(tmp_path, **kw):
+    """Claude-path config (these tests cover the Anthropic adapter; OpenAI has its own section)."""
+    kw.setdefault("provider", "anthropic")
     return MonitorConfig(cache_path=tmp_path / "cache.jsonl", **kw)
 
 
@@ -76,13 +78,18 @@ def test_mock_and_replay_open_no_sockets(monkeypatch, tmp_path):
 
 
 def test_default_mode_is_mock_and_needs_no_sdk(monkeypatch):
-    for k in ("ARGUS_LLM_MODE", "ARGUS_LLM_MODEL", "ARGUS_LLM_EFFORT"):
+    for k in ("ARGUS_LLM_MODE", "ARGUS_LLM_MODEL", "ARGUS_LLM_EFFORT", "ARGUS_LLM_PROVIDER"):
         monkeypatch.delenv(k, raising=False)
     c = MonitorConfig.from_env()
-    assert (c.mode, c.model, c.effort, c.fallback) == ("mock", "claude-opus-5-5", "medium", True)
+    # ADR-0010: OpenAI is the default provider and has no default model (the user picks it).
+    assert (c.mode, c.provider, c.model, c.effort, c.fallback) == ("mock", "openai", "", "medium", False)
     assert isinstance(build_monitor(c), MockMonitor)
+    a = MonitorConfig.from_env({"ARGUS_LLM_PROVIDER": "anthropic"})
+    assert (a.model, a.fallback) == ("claude-opus-5-5", True)
     with pytest.raises(ValueError):
         MonitorConfig.from_env({"ARGUS_LLM_MODE": "online"})
+    with pytest.raises(ValueError):
+        MonitorConfig.from_env({"ARGUS_LLM_PROVIDER": "other"})
 
 
 # ------------------------------------------- 2. policy stays authoritative
@@ -266,3 +273,98 @@ def test_prompt_hash_stable_and_schema_matches_model():
 def test_legacy_shape_for_existing_api():
     j = fail_closed(ev("creds_list"), "refusal:cyber").as_intent_judgement()
     assert j.recommended_action == "ESCALATE" and j.confidence == 0.0
+
+
+# ---------------------------------------------------- 7. OpenAI adapter (ADR-0010)
+
+def ocfg(tmp_path, **kw):
+    kw.setdefault("model", "gpt-6.1-sol")
+    return MonitorConfig(provider="openai", cache_path=tmp_path / "o.jsonl", **kw)
+
+
+class FakeOpenAI:
+    """Stands in for openai.OpenAI(); records requests to responses.create, sends nothing."""
+
+    def __init__(self, response=None, exc=None):
+        self.requests, self._response, self._exc = [], response, exc
+        self.responses = SimpleNamespace(create=self._create)
+
+    def with_options(self, **_):
+        return self
+
+    def _create(self, **kwargs):
+        self.requests.append(kwargs)
+        if self._exc:
+            raise self._exc
+        return self._response
+
+
+def oresp(text=None, status="completed", refusal=False, reason=None, input_tokens=2000, cached=500,
+          output_tokens=800, model="gpt-6.1-sol"):
+    content = [SimpleNamespace(type="refusal", refusal="I can't help")] if refusal else \
+              [SimpleNamespace(type="output_text", text=text or "")]
+    usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens,
+                            input_tokens_details=SimpleNamespace(cached_tokens=cached, cache_write_tokens=0),
+                            output_tokens_details=SimpleNamespace(reasoning_tokens=300))
+    return SimpleNamespace(status=status, output=[SimpleNamespace(type="message", content=content)],
+                           output_text=text, model=model, usage=usage,
+                           incomplete_details=SimpleNamespace(reason=reason) if reason else None)
+
+
+def test_openai_request_shape(tmp_path):
+    fake = FakeOpenAI(oresp(verdict_json()))
+    LiveMonitor(ocfg(tmp_path, mode="live"), client_factory=lambda: fake).judge(OBJ, [], ev("repo_search", query="x"))
+    req = fake.requests[0]
+    assert req["model"] == "gpt-6.1-sol" and req["instructions"] == P.SYSTEM_PROMPT
+    fmt = req["text"]["format"]
+    assert fmt["type"] == "json_schema" and fmt["strict"] is True and fmt["schema"] == P.VERDICT_JSON_SCHEMA
+    assert req["store"] is False and req["reasoning"] == {"effort": "medium"}
+    assert not {"tools", "tool_choice", "temperature", "fallbacks", "betas"} & set(req)
+    assert "<trajectory" in req["input"][0]["content"]
+
+
+def test_openai_effort_none_omits_reasoning(tmp_path):
+    fake = FakeOpenAI(oresp(verdict_json()))
+    LiveMonitor(ocfg(tmp_path, mode="live", effort="none"), client_factory=lambda: fake).judge(
+        OBJ, [], ev("repo_search", query="x"))
+    assert "reasoning" not in fake.requests[0]
+
+
+def test_openai_success_usage_and_cache(tmp_path):
+    fake = FakeOpenAI(oresp(verdict_json("ESCALATE", 0.2)))
+    live = LiveMonitor(ocfg(tmp_path, mode="live"), client_factory=lambda: fake)
+    current = ev("fs_read", path="/workspace/.env")
+    r = live.judge(OBJ, [], current)
+    assert r.source == "live" and r.recommended_action == "ESCALATE" and r.served_by == "gpt-6.1-sol"
+    assert r.usage == {"input_tokens": 1500, "output_tokens": 800,
+                       "cache_creation_input_tokens": 0, "cache_read_input_tokens": 500}
+    assert ReplayMonitor(ocfg(tmp_path, mode="replay")).judge(OBJ, [], current).verdict == r.verdict
+    assert len(fake.requests) == 1
+
+
+@pytest.mark.parametrize(("resp", "error"), [
+    (oresp(refusal=True), "refusal:openai"),
+    (oresp("{}", status="incomplete", reason="max_output_tokens"), "max_tokens"),
+    (oresp("{}", status="incomplete", reason="content_filter"), "refusal:content_filter"),
+    (oresp("{}", status="failed"), "status:failed"),
+    (oresp("not json"), "schema_invalid:JSONDecodeError"),
+])
+def test_openai_failures_fail_closed(tmp_path, resp, error):
+    r = LiveMonitor(ocfg(tmp_path, mode="live"), client_factory=lambda: FakeOpenAI(resp)).judge(
+        OBJ, [], ev("http_post", url="https://fake.local/api", body="x"))
+    assert r.source == "fail_closed" and r.error == error and r.recommended_action == "ESCALATE"
+
+
+def test_openai_without_model_fails_closed_without_calling(tmp_path):
+    fake = FakeOpenAI(oresp(verdict_json()))
+    live = LiveMonitor(MonitorConfig(mode="live", provider="openai", cache_path=tmp_path / "x.jsonl"),
+                       client_factory=lambda: fake)
+    r = live.judge(OBJ, [], ev("creds_list"))
+    assert r.error.startswith("config:model_not_set") and fake.requests == [] and r.recommended_action == "ESCALATE"
+
+
+def test_provider_is_part_of_cache_key(tmp_path):
+    current = ev("fs_read", path="/workspace/README.md")
+    a = cache_key(MonitorConfig(provider="anthropic", model="m", cache_path=tmp_path / "c"), OBJ, [], current)
+    o = cache_key(MonitorConfig(provider="openai", model="m", cache_path=tmp_path / "c"), OBJ, [], current)
+    assert a != o

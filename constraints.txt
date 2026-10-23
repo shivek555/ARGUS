@@ -5,6 +5,7 @@
 # Regenerate after an intentional upgrade, then re-run `make test` and note it in
 # docs/EXPERIMENTS.md (results may shift).
 # 2026-10-23: + anthropic 2.1.0 and its dependencies (R2 LLM monitor); idna 3.11 -> 3.20.
+# 2026-10-23: + openai 3.37.0 and its dependencies (R2 provider switch, ADR-0010).
 annotated-types==0.7.0
 anthropic==2.1.0
 anyio==4.13.0
@@ -23,6 +24,7 @@ iniconfig==2.3.0
 jiter==0.17.0
 joblib==1.5.3
 numpy==2.4.4
+openai==3.37.0
 opentelemetry-api==1.45.1
 packaging==26.2
 pluggy==1.6.0

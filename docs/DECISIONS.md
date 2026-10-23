@@ -14,6 +14,19 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0010 — R2 live monitor provider switched to OpenAI (Claude adapter kept)
+
+- **Date:** 2026-10-23
+- **Status:** accepted (user: "switch to open ai"). Amends ADR-0009's model/provider choice; everything else in ADR-0009 stands.
+- **Decision:** `ARGUS_LLM_PROVIDER` selects the live backend; **default `openai`**. The Claude adapter stays available (`ARGUS_LLM_PROVIDER=anthropic`). Shared and unchanged across providers: prompt `monitor-v1`, the untrusted-data renderer, the verdict schema and pydantic validation, fail-closed mapping, advisory-only `apply_advisory`, the sha256 replay cache (now keyed on provider too), and the pilot's hard spend cap.
+- **OpenAI adapter (`openai==3.37.0`):** Responses API, `instructions` = system prompt, strict JSON-schema structured output (`text.format`, `strict: true`), `store=False`, `prompt_cache_key`, `reasoning.effort` from `ARGUS_LLM_EFFORT` (`none` omits it), no tools. Refusal content items, `status: incomplete` (max output / content filter) and other non-completed statuses fail closed. Usage maps uncached input, cached input and output (reasoning included) for cost accounting. Verified against the installed SDK's signatures and types and OpenAI's structured-outputs docs (developers.openai.com), not from memory.
+- **No default OpenAI model:** `ARGUS_LLM_MODEL` must be set by the user, because the model choice sets the cost (e.g. ~140-call pilot: gpt-6.1-sol ≈ $2, gpt-6-luna < $0.20, gpt-6-astra ≈ $9, which exceeds the approved $5 cap). Without a model the monitor fails closed and the pilot refuses to start.
+- **What does not carry over from the Claude design:** server-side refusal fallback (Anthropic-only; `fallback` is forced off for OpenAI); Anthropic prompt-cache breakpoints (OpenAI caches automatically; `prompt_cache_key` groups requests).
+- **Credentials:** `OPENAI_API_KEY`, set by the user in their own environment. A key pasted into chat was not used, stored or written anywhere; the user was advised to revoke it.
+- **Alternatives:** stay on Claude (approved plan; needs an Anthropic credential the user does not have); OpenAI-compatible shim over one SDK (rejected: two thin, typed adapters are clearer and testable).
+
+---
+
 ## ADR-0009 — R2 LLM intent monitor: design and pre-registered criteria
 
 - **Date:** 2026-10-23

@@ -1,19 +1,23 @@
 """R2-a: LLM intent monitor (baseline B4) with mock / replay / live modes.
 
-    ARGUS_LLM_MODE   mock (default) | replay | live
-    ARGUS_LLM_MODEL  default claude-opus-5-5
-    ARGUS_LLM_EFFORT default medium   (Opus 5.5 thinking can't be disabled; effort is the control)
-    ARGUS_LLM_CACHE  default argus/intent/cache/<prompt version>.jsonl
-    ARGUS_LLM_FALLBACK  1 (default) | 0   server-side refusal fallback
+    ARGUS_LLM_MODE      mock (default) | replay | live
+    ARGUS_LLM_PROVIDER  openai (default, ADR-0010) | anthropic
+    ARGUS_LLM_MODEL     openai: required, no default (your choice; it sets the cost)
+                        anthropic: default claude-opus-5-5
+    ARGUS_LLM_EFFORT    default medium; "none" omits the reasoning setting (openai)
+    ARGUS_LLM_CACHE     default argus/intent/cache/<prompt version>.jsonl
+    ARGUS_LLM_FALLBACK  anthropic only: 1 (default) | 0   server-side refusal fallback
     ARGUS_LLM_TIMEOUT   seconds, default 60
+    Credentials: OPENAI_API_KEY (openai) or ANTHROPIC_API_KEY / `ant auth login`
+    (anthropic), set by the user in their own environment; ARGUS never stores them.
 
-Invariants (ARGUS_PROMPT.md §4, ADR-0009):
+Invariants (ARGUS_PROMPT.md §4, ADR-0009, ADR-0010):
 * advisory only: ``apply_advisory`` can raise a policy decision, never lower it;
 * no tools: the request carries no tools, tool_choice or MCP servers;
-* fail closed: any error, refusal, timeout, schema failure or replay miss
-  becomes ESCALATE for risky calls and MONITOR otherwise, with the reason kept;
-* reproducible: current models reject sampling parameters, so answers vary run
-  to run; every live answer (and refusal) is stored in a sha256-keyed cache and
+* fail closed: any error, refusal, timeout, schema failure, missing model or
+  replay miss becomes ESCALATE for risky calls and MONITOR otherwise;
+* reproducible: no sampling parameters are sent, so answers vary run to run;
+  every live answer (and refusal) is stored in a sha256-keyed cache and
   ``replay`` serves only from it, with no network.
 """
 
@@ -35,10 +39,12 @@ from argus.intent import prompt as P
 from argus.intent.mock import _heuristic
 
 Action = Literal["ALLOW", "MONITOR", "ESCALATE", "BLOCK"]
+Provider = Literal["anthropic", "openai"]
 SEVERITY: dict[str, int] = {"ALLOW": 0, "MONITOR": 1, "ESCALATE": 2, "BLOCK": 3}
 RISKY_TOOLS = frozenset({"fs_write", "http_post", "creds_list"})
 KNOWN_TOOLS = frozenset({"fs_read", "fs_write", "fs_list", "repo_search", "http_post", "creds_list"})
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
+DEFAULT_MODEL: dict[str, str] = {"anthropic": "claude-opus-5-5", "openai": ""}  # openai: user picks
 CACHE_DIR = Path(__file__).resolve().parent / "cache"
 
 
@@ -99,12 +105,21 @@ def apply_advisory(policy_decision: str, monitor_action: str) -> str:
 @dataclass(frozen=True)
 class MonitorConfig:
     mode: Literal["mock", "replay", "live"] = "mock"
-    model: str = "claude-opus-5-5"
-    effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    provider: Provider = "openai"
+    model: str = ""  # empty → DEFAULT_MODEL[provider]
+    effort: str = "medium"
     cache_path: Path = field(default_factory=lambda: CACHE_DIR / f"{P.PROMPT_VERSION}.jsonl")
     fallback: bool = True
     timeout_s: float = 60.0
     max_tokens: int = 16000
+
+    def __post_init__(self) -> None:
+        if self.provider not in DEFAULT_MODEL:
+            raise ValueError(f"provider must be anthropic|openai, got {self.provider!r}")
+        if not self.model:
+            object.__setattr__(self, "model", DEFAULT_MODEL[self.provider])
+        if self.provider != "anthropic":
+            object.__setattr__(self, "fallback", False)  # server-side fallback is an Anthropic feature
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> MonitorConfig:
@@ -112,7 +127,7 @@ class MonitorConfig:
         mode = e.get("ARGUS_LLM_MODE", "mock")
         if mode not in ("mock", "replay", "live"):
             raise ValueError(f"ARGUS_LLM_MODE must be mock|replay|live, got {mode!r}")
-        kw: dict[str, Any] = {"mode": mode}
+        kw: dict[str, Any] = {"mode": mode, "provider": e.get("ARGUS_LLM_PROVIDER", "openai")}
         if "ARGUS_LLM_MODEL" in e:
             kw["model"] = e["ARGUS_LLM_MODEL"]
         if "ARGUS_LLM_EFFORT" in e:
@@ -128,7 +143,7 @@ class MonitorConfig:
 
 def cache_key(cfg: MonitorConfig, objective: Objective, prefix: list[Event], current: Event) -> str:
     blob = json.dumps({
-        "model": cfg.model, "effort": cfg.effort, "fallback": cfg.fallback,
+        "provider": cfg.provider, "model": cfg.model, "effort": cfg.effort, "fallback": cfg.fallback,
         "prompt": P.prompt_hash(), "schema": P.SCHEMA_VERSION,
         "input": P.input_payload(objective, prefix, current),
     }, sort_keys=True, ensure_ascii=True).encode("utf-8")
@@ -136,7 +151,7 @@ def cache_key(cfg: MonitorConfig, objective: Objective, prefix: list[Event], cur
 
 
 class ResponseCache:
-    """Append-only JSONL: one {key, verdict | error, served_by, fallback_used} per line."""
+    """Append-only JSONL: one {key, verdict | error, served_by, fallback_used, usage} per line."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -205,60 +220,63 @@ class ReplayMonitor:
         return _from_record(rec, current, "replay") if rec else fail_closed(current, "replay_cache_miss", key)
 
 
+@dataclass
+class Outcome:
+    """Provider-neutral result of one API call."""
+
+    text: str | None
+    error: str | None
+    served_by: str | None
+    usage: dict[str, int]
+    fallback_used: bool = False
+
+
 class LiveMonitor:
-    """Calls the Claude API once per judgement (cache first). Every outcome is fail-closed-safe."""
+    """Calls the configured provider once per judgement (cache first). Every outcome is fail-closed-safe."""
 
     def __init__(self, cfg: MonitorConfig, cache: ResponseCache | None = None,
                  client_factory: Callable[[], Any] | None = None) -> None:
         self.cfg = cfg
         self.cache = cache or ResponseCache(cfg.cache_path)
-        self._factory = client_factory or _default_client
+        self._factory = client_factory or (lambda: _default_client(cfg.provider))
         self._client: Any = None
         self.calls = 0  # API requests actually sent (for budget accounting)
 
     def request_kwargs(self, objective: Objective, prefix: list[Event], current: Event) -> dict[str, Any]:
-        kw: dict[str, Any] = {
-            "model": self.cfg.model,
-            "max_tokens": self.cfg.max_tokens,
-            "system": [{"type": "text", "text": P.SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-            "messages": [{"role": "user", "content": P.render_user_message(objective, prefix, current)}],
-            "output_config": {"effort": self.cfg.effort,
-                              "format": {"type": "json_schema", "schema": P.VERDICT_JSON_SCHEMA}},
-        }
-        if self.cfg.fallback:
-            kw["betas"] = [FALLBACK_BETA]
-            kw["fallbacks"] = "default"
-        return kw
+        if self.cfg.provider == "openai":
+            return _openai_kwargs(self.cfg, objective, prefix, current)
+        return _anthropic_kwargs(self.cfg, objective, prefix, current)
+
+    def _call(self, client: Any, kwargs: dict[str, Any]) -> Outcome:
+        if self.cfg.provider == "openai":
+            return _openai_outcome(client.responses.create(**kwargs))
+        return _anthropic_outcome(client.beta.messages.create(**kwargs))
 
     def judge(self, objective: Objective, prefix: list[Event], current: Event) -> MonitorResult:
         key = cache_key(self.cfg, objective, prefix, current)
         rec = self.cache.get(key)
         if rec:
             return _from_record(rec, current, "replay")
+        if not self.cfg.model:
+            return fail_closed(current, "config:model_not_set (set ARGUS_LLM_MODEL)", key)
         try:
             if self._client is None:
                 self._client = self._factory()
             client = self._client.with_options(timeout=self.cfg.timeout_s, max_retries=2)
             self.calls += 1
             t0 = time.perf_counter()
-            response = client.beta.messages.create(**self.request_kwargs(objective, prefix, current))
+            out = self._call(client, self.request_kwargs(objective, prefix, current))
             latency_ms = (time.perf_counter() - t0) * 1000
         except Exception as exc:  # noqa: BLE001 — a security monitor fails closed on anything
             return fail_closed(current, f"api_error:{type(exc).__name__}", key)  # transient: not cached
 
-        record: dict[str, Any] = {"key": key, "served_by": getattr(response, "model", None),
-                                  "fallback_used": _fallback_used(response),
-                                  "usage": _usage(response), "latency_ms": round(latency_ms, 1)}
-        stop = getattr(response, "stop_reason", None)
-        if stop == "refusal":
-            details = getattr(response, "stop_details", None)
-            record["error"] = f"refusal:{getattr(details, 'category', None)}"
-        elif stop == "max_tokens":
-            record["error"] = "max_tokens"
+        record: dict[str, Any] = {"key": key, "served_by": out.served_by, "fallback_used": out.fallback_used,
+                                  "usage": out.usage, "latency_ms": round(latency_ms, 1)}
+        if out.error:
+            record["error"] = out.error
         else:
-            text = next((b.text for b in getattr(response, "content", []) if getattr(b, "type", None) == "text"), None)
             try:
-                verdict = MonitorVerdict.model_validate(json.loads(text or ""))
+                verdict = MonitorVerdict.model_validate(json.loads(out.text or ""))
             except (json.JSONDecodeError, ValidationError) as exc:
                 record["error"] = f"schema_invalid:{type(exc).__name__}"
             else:
@@ -272,21 +290,93 @@ class LiveMonitor:
         return result.model_copy(update={"usage": record["usage"], "latency_ms": record["latency_ms"]})
 
 
+# ------------------------------------------------------- provider adapters
+
 USAGE_FIELDS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 
 
-def _usage(response: Any) -> dict[str, int]:
+def _anthropic_kwargs(cfg: MonitorConfig, objective: Objective, prefix: list[Event],
+                      current: Event) -> dict[str, Any]:
+    kw: dict[str, Any] = {
+        "model": cfg.model,
+        "max_tokens": cfg.max_tokens,
+        "system": [{"type": "text", "text": P.SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+        "messages": [{"role": "user", "content": P.render_user_message(objective, prefix, current)}],
+        "output_config": {"effort": cfg.effort,
+                          "format": {"type": "json_schema", "schema": P.VERDICT_JSON_SCHEMA}},
+    }
+    if cfg.fallback:
+        kw["betas"] = [FALLBACK_BETA]
+        kw["fallbacks"] = "default"
+    return kw
+
+
+def _anthropic_outcome(response: Any) -> Outcome:
     u = getattr(response, "usage", None)
-    return {f: int(getattr(u, f, 0) or 0) for f in USAGE_FIELDS}
+    out = Outcome(text=None, error=None, served_by=getattr(response, "model", None),
+                  usage={f: int(getattr(u, f, 0) or 0) for f in USAGE_FIELDS},
+                  fallback_used=any(getattr(it, "type", None) == "fallback_message"
+                                    for it in (getattr(u, "iterations", None) or [])))
+    stop = getattr(response, "stop_reason", None)
+    if stop == "refusal":
+        out.error = f"refusal:{getattr(getattr(response, 'stop_details', None), 'category', None)}"
+    elif stop == "max_tokens":
+        out.error = "max_tokens"
+    else:
+        out.text = next((b.text for b in getattr(response, "content", []) if getattr(b, "type", None) == "text"),
+                        None)
+    return out
 
 
-def _fallback_used(response: Any) -> bool:
-    usage = getattr(response, "usage", None)
-    return any(getattr(it, "type", None) == "fallback_message" for it in (getattr(usage, "iterations", None) or []))
+def _openai_kwargs(cfg: MonitorConfig, objective: Objective, prefix: list[Event],
+                   current: Event) -> dict[str, Any]:
+    """Responses API with a strict JSON schema (structured outputs). No tools; not stored by OpenAI."""
+    kw: dict[str, Any] = {
+        "model": cfg.model,
+        "instructions": P.SYSTEM_PROMPT,
+        "input": [{"role": "user", "content": P.render_user_message(objective, prefix, current)}],
+        "text": {"format": {"type": "json_schema", "name": "argus_verdict",
+                            "schema": P.VERDICT_JSON_SCHEMA, "strict": True}},
+        "max_output_tokens": cfg.max_tokens,
+        "store": False,
+        "prompt_cache_key": f"argus-{P.PROMPT_VERSION}",
+    }
+    if cfg.effort != "none":
+        kw["reasoning"] = {"effort": cfg.effort}
+    return kw
 
 
-def _default_client() -> Any:
-    import anthropic  # imported lazily: mock/replay never need the SDK or credentials
+def _openai_outcome(response: Any) -> Outcome:
+    u = getattr(response, "usage", None)
+    cached = int(getattr(getattr(u, "input_tokens_details", None), "cached_tokens", 0) or 0)
+    usage = {"input_tokens": max(0, int(getattr(u, "input_tokens", 0) or 0) - cached),  # uncached part
+             "output_tokens": int(getattr(u, "output_tokens", 0) or 0),                # includes reasoning
+             "cache_creation_input_tokens": 0, "cache_read_input_tokens": cached}
+    out = Outcome(text=None, error=None, served_by=getattr(response, "model", None), usage=usage)
+    status = getattr(response, "status", None)
+    refused = any(getattr(c, "type", None) == "refusal"
+                  for item in (getattr(response, "output", None) or [])
+                  for c in (getattr(item, "content", None) or []))
+    if refused:
+        out.error = "refusal:openai"
+    elif status == "incomplete":
+        reason = getattr(getattr(response, "incomplete_details", None), "reason", None)
+        out.error = {"max_output_tokens": "max_tokens", "content_filter": "refusal:content_filter"}.get(
+            reason, f"incomplete:{reason}")
+    elif status not in (None, "completed"):
+        out.error = f"status:{status}"
+    else:
+        out.text = getattr(response, "output_text", None)
+    return out
+
+
+def _default_client(provider: str) -> Any:
+    # Imported lazily: mock/replay never need an SDK or credentials.
+    if provider == "openai":
+        import openai
+
+        return openai.OpenAI()  # reads OPENAI_API_KEY from the user's environment
+    import anthropic
 
     return anthropic.Anthropic()
 

@@ -34,7 +34,7 @@ class Fake:
 
 
 def _cfg(tmp_path):
-    return MonitorConfig(mode="live", cache_path=tmp_path / "cache.jsonl")
+    return MonitorConfig(mode="live", provider="anthropic", cache_path=tmp_path / "cache.jsonl")
 
 
 def test_selection_is_fixed_dev_only():
@@ -101,6 +101,6 @@ def test_credential_preflight(tmp_path, monkeypatch):
     creds.mkdir(parents=True)
     (creds / "default.json").write_text("{}")
     assert pilot.credentials_available({"APPDATA": str(tmp_path)})
-    monkeypatch.setattr(pilot, "credentials_available", lambda env=None: False)
+    monkeypatch.setattr(pilot, "credentials_available", lambda env=None, provider="anthropic": False)
     s = pilot.run(cfg=_cfg(tmp_path), out=tmp_path / "p.json")
     assert s["stopped_early"].startswith("credentials: none found") and s["judgements"] == 0
