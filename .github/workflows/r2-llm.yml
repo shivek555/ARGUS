@@ -44,7 +44,7 @@ env:
 
 jobs:
   monitor:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest moved to 26.04 (no Python 3.11.9 build)
     timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4

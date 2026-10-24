@@ -22,7 +22,7 @@ env:
 jobs:
   research:
     name: Research code (tests + benchmark integrity)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest moved to 26.04 (no Python 3.11.9 build)
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -64,7 +64,7 @@ jobs:
 
   dashboard:
     name: Dashboard (typecheck + build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest moved to 26.04 (no Python 3.11.9 build)
     timeout-minutes: 10
     defaults:
       run:

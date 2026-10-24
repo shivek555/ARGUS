@@ -233,3 +233,11 @@ def test_workflow_pins_and_limits():
     assert list(R.CANDIDATES) + list(R.RESERVE) == options
     commit = next(s for s in WF["jobs"]["monitor"]["steps"] if s.get("name", "").startswith("Commit"))
     assert "git add argus/intent/cache/ollama eval/r2l" in commit["run"]
+
+
+def test_runners_pinned_to_ubuntu_2404():
+    """ubuntu-latest moved to 26.04 (Oct 2026), which has no Python 3.11.9 build; pilots ran on 24.04."""
+    for wf in ("r2-llm.yml", "ci.yml"):
+        doc = yaml.safe_load((ROOT / ".github" / "workflows" / wf).read_text(encoding="utf-8"))
+        for name, job in doc["jobs"].items():
+            assert job["runs-on"] == "ubuntu-24.04", (wf, name)
