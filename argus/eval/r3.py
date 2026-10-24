@@ -67,6 +67,7 @@ BUDGET = 0.10
 C_DEFAULT = 1.0
 N_BOOT = 1000
 BOOT_SEED = 12345
+POINT_DECIMALS = 9                              # out-of-fold risk points, see oof_points
 
 
 @dataclass
@@ -133,7 +134,9 @@ def oof_points(trajs: list[Traj], names: tuple[str, ...], C: float = C_DEFAULT,
         m = RiskModel.fit(X[train], y[train], names, C)
         for ti, tr in enumerate(trajs):
             if group_of(tr) == g:
-                points[ti] = m.risk_points([s.vector(names) for s in tr.sigs]).tolist()
+                # Rounded so float noise (~1e-13, differs by OS) cannot break exact ties at a strict
+                # `>` threshold; mostly-binary signal sets (e.g. the no-ML ablation) produce many ties.
+                points[ti] = np.round(m.risk_points([s.vector(names) for s in tr.sigs]), POINT_DECIMALS).tolist()
         oof_logit[~train] = m.logit(X[~train])
     final = RiskModel.fit(X, y, names, C).calibrate(oof_logit, y)
     return points, final
