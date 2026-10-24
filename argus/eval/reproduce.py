@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from argus.eval import r1b, r3, r4
+from argus.eval import poc, r1b, r3, r4
 from argus.eval.svg import histogram, line_chart
 
 ROOT = r3.ROOT
@@ -48,6 +48,25 @@ def table(head: list[str], rows: list[list[Any]]) -> str:
     out = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
     return "\n".join(out) + "\n"
+
+
+def rounded(o: Any, nd: int = 6) -> Any:
+    """Floats rounded so the app's JSON is byte-stable across operating systems."""
+    if isinstance(o, float):
+        return round(o, nd)
+    if isinstance(o, dict):
+        return {k: rounded(v, nd) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [rounded(v, nd) for v in o]
+    return o
+
+
+def as_json(o: Any) -> str:
+    return json.dumps(rounded(o), indent=1, sort_keys=True, ensure_ascii=True) + "\n"
+
+
+def r2l_summaries() -> list[dict[str, Any]]:
+    return [json.loads(f.read_text(encoding="utf-8"))["summary"] for f in sorted(R2L_DIR.glob("*/*.json"))]
 
 
 def ci(c: list[float] | None) -> str:
@@ -191,16 +210,25 @@ def build(out: Path, fast: bool) -> list[Path]:
 
     if not fast:
         r1b.main([])
-        put("r1b_dev_selection.md",
-            render_r1b(json.loads((r1b.OUT_DIR / "dev_selection.json").read_text(encoding="utf-8"))))
+        sel = json.loads((r1b.OUT_DIR / "dev_selection.json").read_text(encoding="utf-8"))
+        put("r1b_dev_selection.md", render_r1b(sel))
+        put("r1b_dev_selection.json", as_json({k: v for k, v in sel.items() if k != "results"}
+                                              | {"results": {n: {"config": r["config"], "agg": r["agg"]}
+                                                             for n, r in sel["results"].items()}}))
     put("r2l_runs.md", render_r2l())
+    put("r2l_runs.json", as_json(r2l_summaries()))
     r3.main([])
-    put("r3_dev.md", render_r3(json.loads(r3.OUT.read_text(encoding="utf-8"))))
+    r3_report = json.loads(r3.OUT.read_text(encoding="utf-8"))
+    put("r3_dev.md", render_r3(r3_report))
+    put("r3_dev.json", as_json({k: v for k, v in r3_report.items() if k != "frozen"}))
     r4.main(["dev"])
     rep = json.loads((r4.OUT_DIR / "dev.json").read_text(encoding="utf-8"))
     md, csv_text = render_r4(rep)
     put("r4_dev.md", md)
     put("r4_dev_methods.csv", csv_text)
+    put("r4_dev.json", as_json(rep))
+    with tempfile.TemporaryDirectory() as tmp:          # v0 PoC run, for the web app's Archive page
+        put("poc_summary.json", as_json(poc.compute_summary(Path(tmp))))
     for name, svg in figures(rep).items():
         put(f"figures/{name}", svg)
     return written

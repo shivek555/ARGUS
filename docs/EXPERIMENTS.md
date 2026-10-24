@@ -131,3 +131,11 @@ Full hashes in the manifest. Component thresholds (dev budget): B3 anomaly > 0.1
 | reproduce | `python -m argus.eval.reproduce` | `docs/results/` | All tables + 3 SVG figures; CI `--check --fast` byte-identical. |
 
 **R4 checkpoint accepted (2026-10-24).** Seed-variance finding recorded (ADR-0013): hybrid DR 0.708 ± 0.220 across 5 training resamples vs 0.975 frozen. First CI run of `derive` ([40079459307](https://github.com/shivek555/ARGUS/actions/runs/40079459307)) failed byte-identity on Linux for all 25 files; the check is now numeric (rel. tol. 1e-6).
+
+## Phase W (2026-10-24, ADR-0014)
+
+| Run | Command | Result | Notes |
+|---|---|---|---|
+| G7 local | `make serve`, then `python -m argus.api.demo --base http://127.0.0.1:8000` | PASS | All 7 demo beats at their pinned outcomes; every page asset, results file and figure served. |
+| latency (laptop, re-measured) | `python -m argus.eval.latency --doc docs/results/latency-laptop.md` | `docs/results/latency-laptop.{md,json}` | ARGUS w/o LLM 1.82 ms p50 / 3.66 ms p95 per call (earlier run: 3.58 / 6.15; same machine, different load). LLM numbers unchanged (runner-recorded). |
+

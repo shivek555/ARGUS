@@ -1,9 +1,10 @@
-"""Read-mostly service layer behind the HTTP API.
+"""Archive: the v0 PoC, read-only (ADR-0002, retired to an archive by ADR-0014).
 
-Every number it returns is either recomputed deterministically from the frozen
-scenario files (replays, anomaly scores, policy verdicts) or read from the
-logged PoC run in ``eval/results/poc/summary.json``. Nothing is invented: if the
-run is missing, callers get a "not yet measured" response instead of numbers.
+Every number it returns is either recomputed deterministically from the frozen PoC
+scenario files (replays, anomaly scores, policy verdicts) or read from the logged PoC
+run, committed by `reproduce` as ``docs/results/poc_summary.json``. The PoC's "run
+evaluation" endpoint and its playground sessions were retired in Phase W; live sessions
+now run through the R3 containment session (``argus.api.research``).
 """
 
 from __future__ import annotations
@@ -12,9 +13,6 @@ import hashlib
 import inspect
 import json
 import threading
-import uuid
-from collections import OrderedDict
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,36 +22,24 @@ import numpy as np
 from argus.agents.runtime import run_scripted
 from argus.bench.loader import file_sha256, load_all_scenarios, objective_from_scenario
 from argus.detectors.iforest import PrefixIsolationForest
-from argus.events.builders import redact_result
-from argus.eval.poc import POLICY_PATH, RESULTS, compute_summary
+from argus.eval.poc import POLICY_PATH
 from argus.events.schema import SCHEMA_VERSION, Event, Objective
 from argus.gateway.core import Gateway
 from argus.intent.mock import MockIntentMonitor
 from argus.policy.engine import PolicyEngine
-from argus.sandbox.tools import FakeWorld, default_world, make_tools
+from argus.sandbox.tools import default_world, make_tools
 from argus.telemetry.log import MemoryLogger
 
-from argus.api.models import (
-    AnomalyView,
-    IntentView,
-    PolicyExplain,
-    StepView,
-    ToolCallRequest,
-)
+from argus.api.models import AnomalyView, IntentView, PolicyExplain, StepView
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = ROOT / ".argus_cache"
-REPRODUCE_COMMAND = "python -m argus.eval.poc"
+REPRODUCE_COMMAND = "python -m argus.eval.reproduce"
+SUMMARY_PATH = ROOT / "docs" / "results" / "poc_summary.json"
 DETECTOR_SEED = 0  # same seed as the logged PoC run
-MAX_SESSIONS = 64
-MAX_STEPS_PER_SESSION = 100
 
 
 class NotFound(KeyError):
-    pass
-
-
-class Conflict(RuntimeError):
     pass
 
 
@@ -90,42 +76,22 @@ def replay_scenario(data: dict[str, Any], policy: PolicyEngine) -> tuple[Objecti
     return objective, logger.events
 
 
-@dataclass
-class Session:
-    id: str
-    created_at: datetime
-    objective: Objective
-    world: FakeWorld
-    logger: MemoryLogger
-    gateway: Gateway
-    initial_files: frozenset[str]
-    scenario_id: str | None = None
-    script: list[dict[str, Any]] = field(default_factory=list)
-    script_pos: int = 0
-    script_steps: dict[int, int] = field(default_factory=dict)  # gateway step -> script index
-
-
 class ArgusService:
     def __init__(
         self,
         *,
         policy_path: Path = POLICY_PATH,
-        results_dir: Path = RESULTS,
+        summary_path: Path = SUMMARY_PATH,
         cache_dir: Path = CACHE_DIR,
-        max_sessions: int = MAX_SESSIONS,
     ) -> None:
         self.policy_path = policy_path
-        self.results_dir = results_dir
+        self.summary_path = summary_path
         self.policy = PolicyEngine.from_yaml(policy_path)
         self.monitor = MockIntentMonitor(cache_dir / "intent_api.json")
         self.tools = tool_catalog()
         self._tool_names = {t["name"] for t in self.tools}
-        self._max_sessions = max_sessions
-        self._sessions: OrderedDict[str, Session] = OrderedDict()
-        # One lock: the mock monitor writes its cache file and the eval run
-        # rewrites results; both are cheap, so serialising is simplest.
+        # The mock monitor writes its cache file; serialise its use.
         self._lock = threading.RLock()
-        self._run_lock = threading.Lock()
 
         self.scenarios: dict[str, dict[str, Any]] = {
             s["id"]: s for s in load_all_scenarios()
@@ -184,13 +150,7 @@ class ArgusService:
                     {"id": "S5", "text": "Gateway bypass = 0 and sandbox egress to public net = 0 in CI"},
                 ],
             },
-            "not_built": [
-                "risk engine (calibrated additive score)",
-                "containment / quarantine",
-                "human approval queue",
-                "live LLM intent monitor",
-                "Docker network sandbox",
-            ],
+            "archived": "v0 PoC (G3 failed). The current system is under /api/meta.",
         }
 
     # ------------------------------------------------------------ annotation
@@ -289,11 +249,8 @@ class ArgusService:
 
     # ----------------------------------------------------------- experiments
 
-    def _summary_path(self) -> Path:
-        return self.results_dir / "summary.json"
-
     def experiment(self) -> dict[str, Any] | None:
-        path = self._summary_path()
+        path = self.summary_path
         if not path.exists():
             return None
         raw = path.read_bytes()
@@ -322,134 +279,6 @@ class ArgusService:
             "baselines": derive_baselines(rows),
         }
 
-    def run_experiment(self) -> dict[str, Any]:
-        """Re-run the logged PoC eval; identical output to ``make poc``."""
-        if not self._run_lock.acquire(blocking=False):
-            raise Conflict("an evaluation run is already in progress")
-        try:
-            summary = compute_summary(self.results_dir, self.policy_path)
-            self._summary_path().write_text(json.dumps(summary, indent=2), encoding="utf-8")
-        finally:
-            self._run_lock.release()
-        result = self.experiment()
-        assert result is not None
-        return result
-
-    # -------------------------------------------------------------- sessions
-
-    def create_session(self, *, scenario_id: str | None, objective_text: str | None,
-                       allowed_scopes: list[str]) -> dict[str, Any]:
-        script: list[dict[str, Any]] = []
-        if scenario_id is not None:
-            if scenario_id not in self.scenarios:
-                raise NotFound(scenario_id)
-            data = self.scenarios[scenario_id]
-            objective = objective_from_scenario(data)
-            script = [dict(c) for c in data["calls"]]
-        else:
-            assert objective_text is not None
-            sid_task = "session-" + uuid.uuid4().hex[:8]
-            objective = Objective(task_id=sid_task, text=objective_text.strip(),
-                                  allowed_scopes=tuple(allowed_scopes))
-        world = default_world()
-        logger = MemoryLogger()
-        session_id = uuid.uuid4().hex
-        session = Session(
-            id=session_id,
-            created_at=datetime.now(timezone.utc),
-            objective=objective,
-            world=world,
-            logger=logger,
-            gateway=Gateway(tools=make_tools(world), policy=self.policy, logger=logger,
-                            objective=objective, agent_id=f"playground-{session_id[:6]}",
-                            mode="enforce"),
-            initial_files=frozenset(world.files),
-            scenario_id=scenario_id,
-            script=script,
-        )
-        with self._lock:
-            self._sessions[session_id] = session
-            while len(self._sessions) > self._max_sessions:
-                self._sessions.popitem(last=False)
-        return self.session_state(session_id)
-
-    def _get(self, session_id: str) -> Session:
-        with self._lock:
-            session = self._sessions.get(session_id)
-            if session is None:
-                raise NotFound(session_id)
-            self._sessions.move_to_end(session_id)
-            return session
-
-    def session_state(self, session_id: str) -> dict[str, Any]:
-        s = self._get(session_id)
-        events = s.logger.events
-        # Ground truth applies only to calls from the scenario script, indexed by
-        # script position: hand-sent calls are unlabelled and shift step numbers.
-        labels: list[str | None] = [None] * len(events)
-        if s.scenario_id is not None:
-            fus = self.scenarios[s.scenario_id].get("first_unsafe_step")
-            for step, script_idx in s.script_steps.items():
-                labels[step - 1] = _label(script_idx, fus)
-        steps = self._annotate(s.objective, events, labels)
-        return {
-            "id": s.id,
-            "created_at": s.created_at.isoformat(),
-            "agent_id": f"playground-{s.id[:6]}",
-            "mode": "enforce",
-            "objective": {"task_id": s.objective.task_id, "text": s.objective.text,
-                          "allowed_scopes": list(s.objective.allowed_scopes),
-                          "created_at": s.objective.created_at.isoformat()},
-            "scenario_id": s.scenario_id,
-            "script": None if s.scenario_id is None else {
-                "position": s.script_pos,
-                "total": len(s.script),
-                "next_tool": s.script[s.script_pos]["tool"] if s.script_pos < len(s.script) else None,
-            },
-            "max_steps": MAX_STEPS_PER_SESSION,
-            "steps": [x.model_dump() for x in steps],
-            "world": {
-                "files": [
-                    {"path": p, "bytes": len(str(c).encode("utf-8")),
-                     "created_by_agent": p not in s.initial_files}
-                    for p, c in sorted(s.world.files.items())
-                ],
-                # Bodies pass through the same redaction as event results.
-                "http_sink": [
-                    {"url": str(h.get("url")), "body_redacted": redact_result(h.get("body"))}
-                    for h in s.world.http_sink
-                ],
-                "credential_names": sorted(s.world.creds),
-            },
-        }
-
-    def invoke(self, session_id: str, call: ToolCallRequest) -> dict[str, Any]:
-        s = self._get(session_id)
-        with self._lock:
-            if len(s.logger.events) >= MAX_STEPS_PER_SESSION:
-                raise Conflict(f"session reached {MAX_STEPS_PER_SESSION} steps")
-            s.gateway.invoke(call.tool, dict(call.args))
-        return self.session_state(session_id)
-
-    def advance_script(self, session_id: str) -> dict[str, Any]:
-        s = self._get(session_id)
-        with self._lock:
-            if s.scenario_id is None:
-                raise Conflict("session was not created from a scenario")
-            if s.script_pos >= len(s.script):
-                raise Conflict("scenario script already finished")
-            if len(s.logger.events) >= MAX_STEPS_PER_SESSION:
-                raise Conflict(f"session reached {MAX_STEPS_PER_SESSION} steps")
-            call = s.script[s.script_pos]
-            s.script_pos += 1
-            result = s.gateway.invoke(call["tool"], dict(call.get("args") or {}))
-            s.script_steps[result.event.step] = s.script_pos
-        return self.session_state(session_id)
-
-    def delete_session(self, session_id: str) -> None:
-        with self._lock:
-            if self._sessions.pop(session_id, None) is None:
-                raise NotFound(session_id)
 
 
 def _label(script_index: int, first_unsafe: int | None) -> str:

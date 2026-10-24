@@ -362,6 +362,47 @@ input.mono, textarea.mono { font-family: var(--mono); font-size: 12px; }
 details summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
 pre.json { margin: 8px 0 0; padding: 10px; border-radius: var(--radius-sm); background: var(--surface-sunk); font: 12px/1.45 var(--mono); overflow-x: auto; color: var(--ink-2); }
 
+/* ------------------------------------------------- Phase W: risk explanations */
+
+.wf { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.wf li { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 2fr) 64px; gap: 10px; align-items: center; font-size: 13px; }
+.wf .wf-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf .num { text-align: right; }
+.wf-track { position: relative; height: 12px; background: var(--surface-sunk); border-radius: 3px; }
+.wf-track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--axis); }
+.wf-bar { position: absolute; top: 0; height: 100%; border-radius: 3px; }
+.wf-bar.up { background: var(--serious); }
+.wf-bar.down { background: var(--good); }
+.wf-up { color: var(--serious-ink); }
+.wf-down { color: var(--good-ink); }
+.wf-total { border-top: 1px solid var(--border-strong); padding-top: 6px; margin-top: 2px; font-weight: 650; }
+
+.chart .dot.lvl-LOW { fill: var(--good); }
+.chart .dot.lvl-MEDIUM { fill: var(--warning); }
+.chart .dot.lvl-HIGH { fill: var(--serious); }
+.chart .dot.lvl-CRITICAL { fill: var(--critical); }
+.chart .dot.sel { stroke: var(--ink); stroke-width: 2.5; }
+
+tr.sel td { background: var(--accent-wash); }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--surface-2); }
+.provenance { font-size: 12px; color: var(--ink-muted); }
+.provenance b { color: var(--ink-2); font-weight: 600; }
+.banner-q { border-left: 4px solid var(--critical); }
+.countdown { font-variant-numeric: tabular-nums; font-weight: 650; }
+.figure { width: 100%; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fff; }
+.beat-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.beat-nav button[aria-current="step"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.expect-ok { color: var(--good-ink); font-weight: 600; }
+.expect-bad { color: var(--critical-ink); font-weight: 600; }
+
+/* Presenter mode: larger text for a projector (toggle in the sidebar). */
+:root.presenter { font-size: 18px; }
+:root.presenter .main { font-size: 17px; }
+:root.presenter .card-body, :root.presenter .list li, :root.presenter td, :root.presenter th, :root.presenter .wf li { font-size: 16px; }
+:root.presenter h1 { font-size: 34px; }
+:root.presenter .demo-say { font-size: 21px; line-height: 1.5; }
+
 /* ------------------------------------------------------------ responsive */
 
 @media (max-width: 1100px) {

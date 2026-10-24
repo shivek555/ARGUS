@@ -4,19 +4,19 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 
 ## Current phase
 
-**Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Phase R1b (RESCUE-2) approved (ADR-0006); R1b-2 done; R1b-3 built and run on dev (ADR-0007), test v2 being written by the project owner (ADR-0008, partially blind): analysis committed first, then `test-v2 freeze:`.** Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
+**2026-10-24: R1b, R2-L, R3 and R4 are done on dev and frozen; Phase W (web app + class demo) built, at the W-f rehearsal checkpoint. Everything official (G4-R2, R2 test, G5, G6) waits on the blind test v2 the project owner is writing (ADR-0008).** History: Phase R1 complete — G4 FAILED (pre-registered), 2026-10-23. Signal is strong (OC-SVM AUROC 0.990, catches 100% of rule-invisible attacks ~1 step earlier) but FPR on unseen benign task shapes is 32.2% (> 10%). Decision: RESCUE (ADR-0003). Plan: `docs/PLAN_R1_RESCUE.md` (approved: "GO").
 
 ## Roadmap (ADR-0003)
 
 | Phase | Focus | Gate | Status |
 |---|---|---|---|
 | R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
-| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-3 ready; waiting on test v2) |
-| R2 | Live LLM intent monitor, cached replay, injection-safe | L1–L6 (ADR-0009) | **R2-a/b/c done**; user requires $0 → **R2L-a done** (adapter + runner + `r2-llm.yml`, ADR-0011 accepted); **next: you click Run workflow (smoke)** |
+| R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **dev done** (R1b-3 selected `ocsvm-nu0.10-quantile-global`, ADR-0007); **G4-R2 waits on test v2** (`templates_test_v2.py`, you) |
+| R2 | Live LLM intent monitor, cached replay, injection-safe | L1–L6 (ADR-0009) | **dev done ($0)**: qwen2.5:3b frozen (ADR-0011); dev AUROC 0.677, benign FPR 36.5%, p95 9.6 s; test-v2 run waits on test v2 |
 | R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | G5 (ADR-0012) | **dev done, frozen 2026-10-24** (`docs/R3_DEV_REPORT.md`, ADR-0012 accepted): hybrid DR 0.975 / FPR 0.095 vs B2+ 0.833 (G5 dev preview pass); R3-c workload 27/100 fails ≤ 15 (recorded finding). Official G5 waits on test v2 |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | **R4-a..e built, protocol frozen** (ADR-0013 accepted; tables `docs/results/r4_dev.md`): dev G5 preview pass, G6 preview 3/3, seed DR 0.71 ± 0.22 (recorded finding: detection depends strongly on training templates). **Checkpoint accepted 2026-10-24**; R4-f (test v2) blocked on `templates_test_v2.py` |
 | R5 | Adaptive attacker (stretch) | evasion rate per round | not started |
-| W | Upgrade web app (ADR-0002) to new APIs + class demo mode | G7 | parked (v0 app exists) |
+| W | Upgrade web app (ADR-0002) to new APIs + class demo mode | G7 | **W-a..e built** (ADR-0014 accepted; `docs/WEBAPP.md`, `docs/DEMO_SCRIPT.md`); G7 check passes locally, CI job `demo`. **Next: W-f rehearsal (you run `make serve` and walk the demo)** |
 | P | Report + presentation | — | not started |
 
 ## Done
@@ -95,7 +95,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 | G4 ML beats rules on a defined metric | **FAIL (R1, pre-registered)**: AUROC 0.990 ≥ 0.70 but FPR 32% > 10% |
 | G5 hybrid ≥ best component | **dev preview pass** (0.975 vs B2+ 0.833, out-of-fold); official verdict on test v2 (R4) |
 | G6 some unseen-family detection | criterion pre-registered (ADR-0013 accepted); **dev preview pass** 3/3 families (compliant DR 1.00 / 1.00 / 0.85); official on test v2 |
-| G7 demo from clean checkout | not started |
+| G7 demo from clean checkout | **local PASS**; CI job `demo` on a clean ubuntu-24.04 checkout; laptop rehearsal (W-f) pending |
 
 ## Task board
 

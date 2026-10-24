@@ -1,0 +1,54 @@
+{
+ "argus_without_llm_per_call": {
+  "mean_ms": 2.0704065937642846,
+  "n": 2002,
+  "p50_ms": 1.8222000217065215,
+  "p95_ms": 3.6561800108756866
+ },
+ "components": {
+  "features_ml": {
+   "mean_ms": 1.8726052458423166,
+   "n": 2002,
+   "p50_ms": 1.644750067498535,
+   "p95_ms": 3.346854989649728
+  },
+  "gateway_containment": {
+   "mean_ms": 0.45829633661051633,
+   "n": 1747,
+   "p50_ms": 0.12839992996305227,
+   "p95_ms": 2.257449959870427
+  },
+  "policy": {
+   "mean_ms": 0.010670228969663024,
+   "n": 2002,
+   "p50_ms": 0.008500064723193645,
+   "p95_ms": 0.02110004425048828
+  },
+  "risk_engine": {
+   "mean_ms": 0.18713111895230505,
+   "n": 2002,
+   "p50_ms": 0.15159999020397663,
+   "p95_ms": 0.3317899710964411
+  }
+ },
+ "expected_llm_seconds_per_trajectory": 9.70905694610268,
+ "host": {
+  "ci": false,
+  "cpu_count": 8,
+  "machine": "AMD64",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "processor": "Intel64 Family 6 Model 154 Stepping 4, GenuineIntel",
+  "python": "3.11.9"
+ },
+ "l5_p95_le_2s": false,
+ "llm_per_risky_call": {
+  "mean_ms": 7326.660869565218,
+  "n": 575,
+  "p50_ms": 7013.3,
+  "p95_ms": 9378.83,
+  "source": "argus/intent/cache/ollama/qwen2.5_3b (live, GitHub runner CPU)"
+ },
+ "risky_call_fraction": 0.2082917082917083,
+ "steps_per_trajectory": 6.646341463414634,
+ "time_to_containment_note": "containment acts at the flagged call itself, so its added latency is one decision (argus_without_llm_per_call, plus the LLM on risky calls)"
+}

@@ -14,6 +14,7 @@ MAX_SCOPES = 10
 
 _IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 _SCOPE = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")
+_TRAJ = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 ArgValue = str | int | float | bool | None
 
@@ -46,12 +47,19 @@ class ToolCallRequest(BaseModel):
 
 
 class CreateSessionRequest(BaseModel):
-    """Either a free-form objective, or a scenario id whose objective and
-    scripted agent are copied into the session."""
+    """Either a free-form objective (custom session, no-LLM engine), or a bench trajectory
+    id whose objective, world and scripted calls are copied into the session."""
 
-    scenario_id: str | None = Field(default=None, max_length=64)
+    trajectory_id: str | None = Field(default=None, max_length=64)
     objective_text: str | None = Field(default=None, max_length=MAX_OBJECTIVE_CHARS)
     allowed_scopes: list[str] = Field(default_factory=list)
+
+    @field_validator("trajectory_id")
+    @classmethod
+    def _tid(cls, v: str | None) -> str | None:
+        if v is not None and not _TRAJ.match(v):
+            raise ValueError("invalid trajectory id")
+        return v
 
     @field_validator("allowed_scopes")
     @classmethod
@@ -65,12 +73,19 @@ class CreateSessionRequest(BaseModel):
 
     @model_validator(mode="after")
     def _one_source(self) -> CreateSessionRequest:
-        if self.scenario_id is None:
+        if self.trajectory_id is None:
             if not self.objective_text or not self.objective_text.strip():
-                raise ValueError("objective_text is required without scenario_id")
+                raise ValueError("objective_text is required without trajectory_id")
         elif self.objective_text is not None or self.allowed_scopes:
-            raise ValueError("scenario_id cannot be combined with a custom objective")
+            raise ValueError("trajectory_id cannot be combined with a custom objective")
         return self
+
+
+class ApprovalRequest(BaseModel):
+    """A human's decision on a held call. The reviewer name is self-declared (local demo, no auth)."""
+
+    approve: bool
+    reviewer: str = Field(min_length=1, max_length=40)
 
 
 class PolicyExplain(BaseModel):

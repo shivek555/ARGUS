@@ -29,7 +29,7 @@ export function DetectionCell({ at, firstUnsafe, type }: { at: number | null; fi
 }
 
 export function Scenarios() {
-  const list = useAsync(() => api.scenarios(), []);
+  const list = useAsync(() => api.archiveScenarios(), []);
   const [filter, setFilter] = useState<Filter>("all");
   const rows: ScenarioHeader[] = (list.data ?? []).filter((s) => filter === "all" || s.type === filter);
 
@@ -37,7 +37,7 @@ export function Scenarios() {
     <div className="stack">
       <header className="page-head">
         <div>
-          <h1>Scenarios</h1>
+          <h1>Archive · PoC scenarios</h1>
           <p>
             AgentEscapeBench v0: frozen, hash-pinned YAML scenarios with a per-step ground-truth label (
             <code>first_unsafe_step</code>). Detection columns come from a deterministic record-mode replay; "in time"
@@ -91,7 +91,7 @@ export function Scenarios() {
                   >
                     <td>
                       <div className="cell-title">
-                        <a href={`#/scenarios/${encodeURIComponent(s.id)}`} onClick={(e) => e.stopPropagation()}>
+                        <a href={`#/archive/scenarios/${encodeURIComponent(s.id)}`} onClick={(e) => e.stopPropagation()}>
                           {s.id}
                         </a>
                       </div>

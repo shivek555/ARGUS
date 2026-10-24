@@ -1,4 +1,16 @@
-import type { Experiment, Meta, ScenarioDetail, ScenarioHeader, SessionState } from "./types";
+import type { Experiment, Meta, ScenarioDetail, ScenarioHeader } from "./types";
+import type {
+  Approvals,
+  BenchDetail,
+  BenchHeader,
+  DemoBeat,
+  ForensicDetail,
+  ForensicSummary,
+  LiveSession,
+  ResearchMeta,
+  Status,
+  VerifyResult,
+} from "./research-types";
 
 export class ApiError extends Error {
   constructor(
@@ -43,25 +55,41 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+const enc = encodeURIComponent;
+const post = <T,>(path: string, body?: unknown) =>
+  request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
+
+export type NewSession = { trajectory_id: string } | { objective_text: string; allowed_scopes: string[] };
+
 export const api = {
-  meta: () => request<Meta>("/api/meta"),
-  scenarios: () => request<ScenarioHeader[]>("/api/scenarios"),
-  scenario: (id: string) => request<ScenarioDetail>(`/api/scenarios/${encodeURIComponent(id)}`),
-  experiment: () => request<Experiment>("/api/experiments/poc"),
-  runExperiment: () => request<Experiment>("/api/experiments/poc/run", { method: "POST" }),
-  createSession: (
-    body: { scenario_id: string } | { objective_text: string; allowed_scopes: string[] },
-  ) => request<SessionState>("/api/sessions", { method: "POST", body: JSON.stringify(body) }),
-  session: (id: string) => request<SessionState>(`/api/sessions/${encodeURIComponent(id)}`),
+  meta: () => request<ResearchMeta>("/api/meta"),
+  status: () => request<Status>("/api/status"),
+  bench: (q: { split?: string; family?: string; variant?: string } = {}) => {
+    const pairs = Object.entries(q).filter((kv): kv is [string, string] => Boolean(kv[1]));
+    const qs = new URLSearchParams(pairs).toString();
+    return request<BenchHeader[]>(`/api/bench${qs ? `?${qs}` : ""}`);
+  },
+  benchDetail: (id: string) => request<BenchDetail>(`/api/bench/${enc(id)}`),
+  createSession: (body: NewSession) => post<LiveSession>("/api/sessions", body),
+  session: (id: string) => request<LiveSession>(`/api/sessions/${enc(id)}`),
   call: (id: string, tool: string, args: Record<string, string>) =>
-    request<SessionState>(`/api/sessions/${encodeURIComponent(id)}/calls`, {
-      method: "POST",
-      body: JSON.stringify({ tool, args }),
+    post<LiveSession>(`/api/sessions/${enc(id)}/calls`, { tool, args }),
+  scriptNext: (id: string) => post<LiveSession>(`/api/sessions/${enc(id)}/script/next`),
+  approvals: () => request<Approvals>("/api/approvals"),
+  decide: (id: string, approve: boolean, reviewer: string) =>
+    post<{ result: { status: string; queue: string }; session: LiveSession }>(`/api/approvals/${enc(id)}`, {
+      approve,
+      reviewer,
     }),
-  scriptNext: (id: string) =>
-    request<SessionState>(`/api/sessions/${encodeURIComponent(id)}/script/next`, {
-      method: "POST",
-    }),
-  deleteSession: (id: string) =>
-    request<void>(`/api/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  forensics: () => request<ForensicSummary[]>("/api/forensics"),
+  forensic: (id: string) => request<ForensicDetail>(`/api/forensics/${enc(id)}`),
+  verify: (id: string) => post<VerifyResult>(`/api/forensics/${enc(id)}/verify`),
+  result: <T,>(name: string) => request<T>(`/api/results/${enc(name)}`),
+  figureUrl: (name: string) => `/api/results/figures/${enc(name)}.svg`,
+  demo: () => request<{ beats: DemoBeat[]; approval_timeout_s: number }>("/api/demo"),
+  demoReset: () => post<{ status: string }>("/api/demo/reset"),
+  archiveMeta: () => request<Meta>("/api/archive/meta"),
+  archiveScenarios: () => request<ScenarioHeader[]>("/api/archive/scenarios"),
+  archiveScenario: (id: string) => request<ScenarioDetail>(`/api/archive/scenarios/${enc(id)}`),
+  archiveExperiment: () => request<Experiment>("/api/archive/experiment"),
 };

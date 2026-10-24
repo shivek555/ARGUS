@@ -14,6 +14,24 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0014 — Phase W: web app over the frozen research system, G7 criterion
+
+- **Date:** 2026-10-24
+- **Status:** **accepted 2026-10-24** with the §9 defaults (PoC archived and its run endpoint retired; no-LLM ablation for custom sessions; 120 s demo approval timeout; demo beats as listed, with the correction below). W-a..e built: `argus/api/{research,demo,app,models,service}.py`, dashboard pages (Overview, Demo, Benchmark, Trajectory, Live session, Approvals, Forensics, Results, Archive), `reproduce` writes the app's JSON, CI job `demo` (G7), `docs/WEBAPP.md`, `docs/DEMO_SCRIPT.md`. **Next: W-f rehearsal checkpoint (user).**
+- **Correction to the plan's demo beat 4 ("an approved call still obeys policy"):** with the real engines it cannot happen, because a policy BLOCK is always CRITICAL, so a held (HIGH) call is never one the policy blocks. Showing it would need a forced engine. Beats now: benign allowed; rules quarantine a policy-visible attack (`dev-creds_visible-004`); the hybrid alone quarantines a policy-compliant exfiltration 3 steps before the upload (`dev-exfil_compliant-000`, policy v2 never fires); a human denies a held goal-hijack write (`dev-hijack_compliant-012`); an honest false alarm approved by a human (`devb2-secrets_audit_v2-003`); a custom typed session (README LOW, `.env` without scope CRITICAL from the score); results. Chosen from dev by fixed rules (first trajectory in id order with the behaviour), pinned in `argus/api/demo.py`, asserted in `tests/test_api.py` and the CI `demo` job.
+- **Implementation notes:** bench sessions replay recorded calls only (their signals are precomputed per step, as in `r3.simulate`); custom sessions compute policy/ML/context signals live. Server startup ≈ 12–17 s (frozen ML fit + LLM replay + v1-test signals). Demo reset clears sessions and approvals but never deletes snapshot files. Deciding an expired approval returns 409 and drops the held call.
+- **G7 status:** local run against a live server: PASS (all 7 beats at their pinned outcomes, every page asset, results file and figure). CI verdict: the `demo` job.
+- **Decision (as proposed):**
+  - The app exposes the real system: AgentEscapeBench, the frozen R1b ML, the R2-L LLM verdicts (replay only), the frozen R3 engine with per-signal explanations, `ContainedSession`, the approval queue and forensic snapshots, and the R4 tables. It computes no new research numbers; results come from committed `docs/results/` files that `reproduce` writes and CI checks.
+  - Bench-trajectory sessions use the primary model with precomputed (replayed) signals. Custom sessions use the frozen no-LLM ablation, because no LLM verdict exists for them and the primary model never saw missing verdicts on risky calls.
+  - Every number is labelled by provenance (dev out-of-fold / dev in-sample / exploratory / test v2 not yet run). Test v2 is never loaded by the app.
+  - The PoC "Run evaluation" endpoint is retired; PoC pages move to a read-only Archive.
+  - **G7:** PASS iff a fresh ubuntu-24.04 CI checkout installs locked deps, builds the dashboard, starts the API on 127.0.0.1, runs every demo beat over HTTP with its pinned expected outcome, loads every route and results file without error, and stops, within 10 min; and the same passes on the laptop at the rehearsal checkpoint.
+- **Why:** the class presentation needs a live, honest demo, and the brief's G7 asks for one that runs from a clean checkout. Reusing the frozen code paths keeps the demo identical to what was evaluated.
+- **Alternatives:** recorded/static demo (rejected: not live, G7 asks for a running system); live LLM in the app (rejected: needs Ollama + a model download on the PC); public deployment (rejected: no auth, local tool).
+
+---
+
 ## ADR-0013 — R4 full evaluation protocol and G6 criterion
 
 - **Date:** 2026-10-24

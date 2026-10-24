@@ -1,12 +1,12 @@
 import { api } from "../api";
-import { navigate, useAsync } from "../hooks";
+import { useAsync } from "../hooks";
 import { AnomalyChart } from "../components/AnomalyChart";
 import { StepTable } from "../components/StepTable";
 import { Callout, Card, ErrorState, Loading, TypeChip } from "../components/ui";
 import { DetectionCell } from "./Scenarios";
 
 export function ScenarioView({ id }: { id: string }) {
-  const q = useAsync(() => api.scenario(id), [id]);
+  const q = useAsync(() => api.archiveScenario(id), [id]);
   const s = q.data;
   const threshold = s?.steps[0]?.anomaly.threshold;
   const missedUnsafe = s?.steps.filter((x) => x.label === "unsafe" && x.decision === "ALLOW") ?? [];
@@ -16,7 +16,7 @@ export function ScenarioView({ id }: { id: string }) {
       <header className="page-head">
         <div>
           <div className="crumbs">
-            <a href="#/scenarios">Scenarios</a> / {id}
+            <a href="#/archive">Archive</a> / {id}
           </div>
           <h1 className="row">
             {id} {s && <TypeChip type={s.type} />}
@@ -28,11 +28,6 @@ export function ScenarioView({ id }: { id: string }) {
             </p>
           )}
         </div>
-        {s && (
-          <button className="btn primary" onClick={() => navigate(`/playground?scenario=${encodeURIComponent(s.id)}`)}>
-            ▶ Replay in enforce mode
-          </button>
-        )}
       </header>
 
       {q.loading && <Loading rows={6} />}

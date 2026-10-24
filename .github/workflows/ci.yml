@@ -98,3 +98,52 @@ jobs:
 
       - name: Audit runtime + dev dependencies
         run: npm audit --audit-level=moderate
+
+  demo:
+    # G7 (ADR-0014): the class demo runs from a clean checkout. Fresh install, build the
+    # dashboard, start the real server on loopback, then drive every demo beat over HTTP
+    # and assert its pinned outcome, plus every page asset, results file and figure.
+    name: Demo from a clean checkout (G7)
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest moved to 26.04 (no Python 3.11.9 build)
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.9"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install (locked)
+        run: |
+          python -m pip install -r requirements.txt -c constraints.txt
+          npm --prefix dashboard ci
+
+      - name: Build the dashboard
+        run: npm --prefix dashboard run build
+
+      - name: Start the server (127.0.0.1)
+        run: |
+          nohup python -m argus.api --port 8000 > api.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8000/api/health > /dev/null; then echo "up after $((i * 2)) s"; exit 0; fi
+            sleep 2
+          done
+          echo "server did not start"; cat api.log; exit 1
+
+      - name: Run every demo beat over HTTP (G7 check)
+        run: python -m argus.api.demo --base http://127.0.0.1:8000
+
+      - name: Server log
+        if: always()
+        run: cat api.log
+

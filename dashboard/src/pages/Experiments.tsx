@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { api, ApiError } from "../api";
 import { useAsync } from "../hooks";
 import { Callout, Card, ErrorState, Loading, Todo, TypeChip, fixed, pct, relTime, shortSha } from "../components/ui";
@@ -43,21 +42,7 @@ function BaselineRow({ b }: { b: Baseline }) {
 }
 
 export function Experiments() {
-  const exp = useAsync(() => api.experiment(), []);
-  const [running, setRunning] = useState(false);
-  const [runErr, setRunErr] = useState<Error | null>(null);
-
-  const rerun = async () => {
-    setRunning(true);
-    setRunErr(null);
-    try {
-      exp.setData(await api.runExperiment());
-    } catch (e) {
-      setRunErr(e instanceof Error ? e : new Error(String(e)));
-    } finally {
-      setRunning(false);
-    }
-  };
+  const exp = useAsync(() => api.archiveExperiment(), []);
 
   const missing = exp.error instanceof ApiError && exp.error.status === 404;
   const d = exp.data;
@@ -66,23 +51,20 @@ export function Experiments() {
     <div className="stack">
       <header className="page-head">
         <div>
-          <h1>Experiments</h1>
+          <h1>Archive · PoC experiment</h1>
           <p>
-            Baseline comparison on identical trajectories, read from the logged PoC run. Re-running executes the same
-            code path as <code>python -m argus.eval.poc</code> and overwrites the logged summary.
+            Archive (ADR-0014): the v0 PoC baseline comparison, read from the committed run
+            <code> docs/results/poc_summary.json</code> (written by <code>python -m argus.eval.reproduce</code>). It
+            failed G3; the current system is on the Results page.
           </p>
         </div>
-        <button className="btn primary" onClick={() => void rerun()} disabled={running}>
-          {running ? "Running…" : "↻ Run evaluation"}
-        </button>
       </header>
 
-      {runErr && <ErrorState error={runErr} />}
       {exp.loading && <Loading rows={5} />}
       {missing && (
         <Callout tone="warning" icon="▲" title="TODO: not yet measured">
-          No logged run at <code>eval/results/poc/summary.json</code>. Use “Run evaluation” or{" "}
-          <code>python -m argus.eval.poc</code>.
+          No committed PoC run at <code>docs/results/poc_summary.json</code>. Run{" "}
+          <code>python -m argus.eval.reproduce</code>.
         </Callout>
       )}
       {exp.error && !missing && <ErrorState error={exp.error} onRetry={exp.reload} />}
@@ -210,7 +192,7 @@ export function Experiments() {
                   {d.rows.map((r) => (
                     <tr key={r.id}>
                       <td>
-                        <a href={`#/scenarios/${encodeURIComponent(r.id)}`}>{r.id}</a>
+                        <a href={`#/archive/scenarios/${encodeURIComponent(r.id)}`}>{r.id}</a>
                         <div className="cell-sub mono">{r.family}</div>
                       </td>
                       <td>

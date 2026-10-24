@@ -156,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.doc:
         args.doc.parent.mkdir(parents=True, exist_ok=True)
         args.doc.write_text(md, encoding="utf-8")
+        args.doc.with_suffix(".json").write_text(json.dumps(r, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(md)
     return 0
 

@@ -1,83 +1,76 @@
-# ARGUS web app (API + dashboard)
+# ARGUS web app (API + dashboard), Phase W
 
-A local research console over the PoC. It shows what exists and nothing more: frozen
-scenario replays, the logged evaluation run, and a live gateway you can drive by hand.
-See ADR-0002 for why it exists before G4 and what it deliberately does not do.
+A local console over the **frozen research system** (ADR-0014): AgentEscapeBench replays with the frozen R3 risk decisions and their explanations, live enforce-mode containment sessions, the human approval queue, forensic snapshots, and the committed R4 results. It computes no new research numbers. The v0 PoC is kept read-only under **Archive**.
 
 ## Run it
 
-Requirements: Python 3.11+, Node 18+ (tested with Node 24).
+Requirements: Python 3.11.9 and Node 22 (both already used by the project). Nothing is downloaded at demo time: no model, no API key, no network.
 
 ```bash
 pip install -r requirements.txt -c constraints.txt
 npm --prefix dashboard ci
-python -m argus.eval.poc        # optional: writes the logged run the Experiments page reads
-make serve                      # builds dashboard/dist, serves UI + API on http://127.0.0.1:8000
+make serve          # builds dashboard/dist, serves UI + API on http://127.0.0.1:8000
 ```
 
-Development (hot reload): run `make api` and `make dashboard-dev` in two terminals and open
-http://127.0.0.1:5173 (Vite proxies `/api` to :8000). OpenAPI UI: http://127.0.0.1:8000/docs.
+The server needs about 15 s to start: it fits the frozen ML detector and loads the bench and LLM replay cache before it listens. Development: `make api` and `make dashboard-dev` in two terminals, then open http://127.0.0.1:5173. OpenAPI: http://127.0.0.1:8000/docs.
 
-Tests: `make test` (API tests use FastAPI's in-process client; no sockets, no LLM calls).
+**G7 check** (the same one CI runs on a clean checkout): with the server running, `python -m argus.api.demo --base http://127.0.0.1:8000` prints `G7 check: PASS`.
 
 ## Pages
 
-| Page | What it shows | Data source |
+| Page | What it shows | Source |
 |---|---|---|
-| Overview | Hypothesis status vs the pre-registered PoC bar (AUROC ≥ 0.70), headline rates, what is built vs mock vs not built, S1–S5 (all `TODO: not yet measured`), active policy | `summary.json` + `/api/meta` |
-| Scenarios | All frozen scenarios with first-detection step per detector, judged against `first_unsafe_step` | deterministic record-mode replay |
-| Scenario drill-down | Immutable objective, per-step timeline (policy rule + reason, mock intent, anomaly score, ground truth), anomaly-over-steps chart, unsafe-but-allowed steps highlighted | replay |
-| Gateway playground | Start a session from a custom objective or a scenario; send tool calls (incl. unregistered tools) through the **enforce-mode** gateway; see the fake world (egress sink, files written, credential names) | live `Gateway` over `FakeWorld` |
-| Experiments | Provenance (file, SHA-256, mtime, reproduce command, scenario-hash drift check), B1–B4 per-trajectory DR/FPR/in-time/steps-before-harm, hybrid + latency as TODO, per-scenario detection matrix, "Run evaluation" | `summary.json`; re-run calls `compute_summary` |
+| Overview | Research questions, gate and phase board, headline dev numbers with their labels, frozen artefacts with hashes, overhead | `/api/status` (parsed from `docs/PROGRESS.md`), `docs/results/*.json` |
+| Demo | 7 guided beats, each driving the real API; ← → to move; pinned expected outcomes | `argus/api/demo.py` |
+| Benchmark | Dev attacks / dev benign / v1 test with each method's first flag vs the harm step | frozen signals + engines |
+| Trajectory | Risk-over-steps chart with level thresholds, per-step table, **explanation**: baseline + per-signal points = risk score, the reasons for the level, recommended response | frozen engine |
+| Live session | Replay a bench trajectory or type your own calls through `ContainedSession` (enforce mode) | live |
+| Approvals | Held HIGH-risk calls with a countdown; approve/deny with a reviewer name | shared `ApprovalQueue` |
+| Forensics | Snapshots (trigger, events, decisions, files written, egress, all redacted) and server-side sha256 verification | `eval/results/webapp/forensics/` (gitignored) |
+| Results | R4 methods table, CIs, McNemar/Holm, containment, open-set, seeds, figures, R1b, R2-L, latency, provenance | `docs/results/` |
+| Archive | v0 PoC scenarios and experiment (failed G3), read-only | `docs/results/poc_summary.json` |
 
-Record vs enforce: scenario replays use **record** mode (every call executes, the gateway logs
-what it would decide), exactly like `argus.eval.poc`. The playground uses **enforce** mode
-(blocked calls never execute), so a replayed attack can diverge from the recorded trace.
+## Which engine a session uses (ADR-0014)
+
+| Session | Signals | Engine |
+|---|---|---|
+| Bench trajectory (dev) | Precomputed exactly as the dev evaluation: frozen ML, LLM verdicts replayed from the committed qwen2.5:3b cache | **Primary** model (ADR-0012) |
+| v1 test, custom objective | Live policy + ML + context signals, **no LLM** (no verdict exists; no model runs in the app) | **No-LLM ablation** (ADR-0013) |
+
+Bench sessions replay their recorded calls only, because their signals are precomputed per step; custom sessions accept hand-typed calls. On dev, decisions are **in-sample** (the model was fitted on that data): every per-trajectory view says so and points to the out-of-fold numbers on Results.
 
 ## API
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/health` | liveness |
-| GET | `/api/meta` | schema version, policy (path, sha, rules), tool catalog (from real signatures), detector config + threshold, pre-registered criteria, not-built list |
-| GET | `/api/scenarios` | headers + first-detection steps |
-| GET | `/api/scenarios/{id}` | annotated replay (`StepView[]`) + detections |
-| GET | `/api/experiments/poc` | logged run + provenance + derived baselines; **404 "TODO: not yet measured"** if absent |
-| POST | `/api/experiments/poc/run` | re-runs the PoC eval and overwrites `summary.json`; 409 if already running |
-| POST | `/api/sessions` | `{objective_text, allowed_scopes}` or `{scenario_id}` (not both) |
-| GET | `/api/sessions/{id}` | session state |
-| POST | `/api/sessions/{id}/calls` | `{tool, args}` through the gateway |
-| POST | `/api/sessions/{id}/script/next` | next scripted call of a scenario session; 409 when finished |
-| DELETE | `/api/sessions/{id}` | drop session |
+| GET | `/api/health`, `/api/meta`, `/api/status` | frozen artefacts + hashes, engines, signals, levels, policy, tools; gate/phase board |
+| GET | `/api/bench?split=&family=&variant=` · `/api/bench/{id}` | headers with first-flag per method · per-step decisions with contributions |
+| POST | `/api/sessions` | `{trajectory_id}` or `{objective_text, allowed_scopes}` (not both) |
+| GET/DELETE | `/api/sessions/{id}` | state: records (status, decision, approval), quarantine, snapshot, world |
+| POST | `/api/sessions/{id}/calls` · `/script/next` | custom call · next recorded call |
+| GET · POST | `/api/approvals` · `/api/approvals/{id}` | queue with seconds left · `{approve, reviewer}` |
+| GET · POST | `/api/forensics[/{id}]` · `/api/forensics/{id}/verify` | snapshot list/detail · sha256 check |
+| GET | `/api/results/{name}` · `/api/results/figures/{name}.svg` | whitelisted committed files |
+| GET · POST | `/api/demo` · `/api/demo/reset` | beats · clear sessions/approvals (snapshot files stay on disk) |
+| GET | `/api/archive/{meta,scenarios,scenarios/{id},experiment}` | v0 PoC, read-only |
 
-Each step carries `policy.source`: `policy` (YAML rule: `egress.scope`, `egress.allowlist`,
-`credentials.scope`, `default.allow`) or `gateway` (`gateway.unknown_tool`,
-`gateway.tool_error`, `gateway.fail_closed`).
-
-## Derived metrics (exact definitions)
-
-Computed server-side from the logged rows only (`derive_baselines` in `argus/api/service.py`):
-
-- **Detection rate**: attack trajectories with any flag ÷ attack trajectories.
-- **FPR**: benign trajectories with any flag ÷ benign trajectories.
-- **Flagged in time**: attacks whose first flag step ≤ `first_unsafe_step`.
-- **Mean steps before harm**: mean of `first_unsafe_step − first_flag_step` over detected attacks (0 = flagged on the unsafe step).
-- **B1** is zero by definition, not measured. **Hybrid**, **latency** and **S1–S5** are `TODO: not yet measured`.
+Retired in Phase W: `POST /api/experiments/poc/run` and the PoC playground sessions.
 
 ## Security properties (tested in `tests/test_api.py`)
 
-- Binds to `127.0.0.1` by default. No CORS. CSP, `nosniff`, `X-Frame-Options: DENY`, `no-referrer`.
-- The playground only reaches `make_tools(FakeWorld)`: in-process, no sockets (existing `test_fake_tools_no_network`).
-- Unknown tools, tool exceptions and event-build failures → BLOCK (fail closed).
-- Injection text in args does not change the policy decision or the mock judge.
-- Canary secrets never appear in any response (results go through `redact_result`; credential store exposes names only).
-- The objective is frozen at session creation; there is no update route.
-- Bounded input: identifier-only tool/arg names, ≤ 8 scalar args, ≤ 10 000 chars each, ≤ 100 steps/session, ≤ 64 sessions (LRU). Sessions are in memory and vanish on restart.
-- SPA fallback never serves files outside `dashboard/dist` and never shadows `/api/*`.
+- Binds to 127.0.0.1 by default; no CORS; CSP, `nosniff`, `X-Frame-Options: DENY`, `no-referrer`.
+- Tools are the in-process fake world only; unknown tools and tool errors fail closed.
+- HIGH-risk calls never run without a human decision; reserved names (`argus`, `agent`, `monitor`, `risk_engine`, `gateway`, `llm`, `ml`) are refused (403); unanswered requests expire after 120 s and are denied; a decided or expired request cannot be decided again (409).
+- CRITICAL quarantines the session: every tool, including egress, is revoked; the snapshot is written once (`open("x")`) and tampering is detected.
+- Session, approval and snapshot ids must be 32-hex; results and figure names are whitelisted; `../` paths never reach files.
+- Canary secrets never appear in any response (bench details, session state, snapshots): results pass through `redact_result`, credential names only.
+- Objective is immutable (PATCH/PUT → 405). Bounded inputs (≤ 8 identifier-named scalar args, ≤ 10 000 chars, ≤ 100 calls/session, ≤ 64 sessions LRU).
+- The reviewer name is self-declared, not authentication. Do not bind this to a public interface.
+- Test v2 is never loaded (`tests/test_blindness.py` covers `argus/api/`).
 
 ## Known limitations
 
-- The anomaly threshold is in-sample (fit and p90 on the same benign scenarios), as in the PoC.
-- The mock intent judge is a scope heuristic; it returns ALLOW for unregistered tools (the gateway still blocks them).
-- No auth: this is a local research tool. Do not bind it to a public interface.
-- No hybrid/risk engine, containment, or approval queue. The UI says so rather than simulating them.
+- Dev decisions shown per trajectory are in-sample; out-of-fold numbers are on Results.
+- Custom sessions have no LLM signal (no live model in the app).
+- Sessions and approvals are in memory and vanish on restart; snapshot files persist under `eval/results/webapp/forensics/`.
+- Startup takes about 15 s.

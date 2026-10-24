@@ -1,0 +1,980 @@
+{
+ "command": "python -m argus.eval.r1b",
+ "data": {
+  "attacks_dev_v1": 120,
+  "benign_by_context": {
+   "egress": 60,
+   "plain": 300,
+   "secrets": 60
+  },
+  "benign_dev_v2": 420
+ },
+ "protocol": {
+  "grid": [
+   {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-standard_floor-global",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "global"
+   },
+   {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-standard_floor-context",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "context"
+   },
+   {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-quantile-global",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "global"
+   },
+   {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-quantile-context",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "context"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-standard_floor-global",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "global"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-standard_floor-context",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "context"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-quantile-global",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "global"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-quantile-context",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "context"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-standard_floor-global",
+    "nu": 0.1,
+    "scaler": "standard_floor",
+    "threshold": "global"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-standard_floor-context",
+    "nu": 0.1,
+    "scaler": "standard_floor",
+    "threshold": "context"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-quantile-global",
+    "nu": 0.1,
+    "scaler": "quantile",
+    "threshold": "global"
+   },
+   {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-quantile-context",
+    "nu": 0.1,
+    "scaler": "quantile",
+    "threshold": "context"
+   },
+   {
+    "control": true,
+    "kind": "iforest",
+    "name": "control-iforest-standard-global",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "global"
+   },
+   {
+    "control": true,
+    "kind": "iforest",
+    "name": "control-iforest-standard-context",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "context"
+   },
+   {
+    "control": true,
+    "kind": "ocsvm",
+    "name": "control-ocsvm-standard-global",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "global"
+   },
+   {
+    "control": true,
+    "kind": "ocsvm",
+    "name": "control-ocsvm-standard-context",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "context"
+   }
+  ],
+  "max_nested_fpr": 0.1,
+  "min_context_n": 30,
+  "quantile": 0.9,
+  "seeds": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "results": {
+  "control-iforest-standard-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.723038,
+     "std": 0.010061
+    },
+    "auroc_compliant": {
+     "mean": 0.808279,
+     "std": 0.007192
+    },
+    "auroc_length_matched": {
+     "mean": 0.774438,
+     "std": 0.009613
+    },
+    "dr": {
+     "mean": 0.19,
+     "std": 0.067165
+    },
+    "dr_compliant": {
+     "mean": 0.243333,
+     "std": 0.06377
+    },
+    "dr_visible": {
+     "mean": 0.136667,
+     "std": 0.071024
+    },
+    "earliness_vs_rules": {
+     "mean": -1,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": -1.638353,
+     "std": 0.358702
+    },
+    "nested_fpr": {
+     "mean": 0.211905,
+     "std": 0.018319
+    }
+   },
+   "config": {
+    "control": true,
+    "kind": "iforest",
+    "name": "control-iforest-standard-context",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "context"
+   }
+  },
+  "control-iforest-standard-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.723038,
+     "std": 0.010061
+    },
+    "auroc_compliant": {
+     "mean": 0.808279,
+     "std": 0.007192
+    },
+    "auroc_length_matched": {
+     "mean": 0.774438,
+     "std": 0.009613
+    },
+    "dr": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "earliness_vs_rules": null,
+    "in_time": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": null,
+    "nested_fpr": {
+     "mean": 0.131905,
+     "std": 0.002428
+    }
+   },
+   "config": {
+    "control": true,
+    "kind": "iforest",
+    "name": "control-iforest-standard-global",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "global"
+   }
+  },
+  "control-ocsvm-standard-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.955909,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.934086,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.973173,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.916667,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.833333,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 0.416667,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.866667,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.3,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.152381,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": true,
+    "kind": "ocsvm",
+    "name": "control-ocsvm-standard-context",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "context"
+   }
+  },
+  "control-ocsvm-standard-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.955909,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.934086,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.973173,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.825,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.683333,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.966667,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": -0.206897,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.6,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": -0.292929,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.116667,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": true,
+    "kind": "ocsvm",
+    "name": "control-ocsvm-standard-global",
+    "nu": 0.05,
+    "scaler": "standard",
+    "threshold": "global"
+   }
+  },
+  "if-quantile-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.74741,
+     "std": 0.012353
+    },
+    "auroc_compliant": {
+     "mean": 0.832848,
+     "std": 0.006944
+    },
+    "auroc_length_matched": {
+     "mean": 0.78483,
+     "std": 0.012518
+    },
+    "dr": {
+     "mean": 0.288333,
+     "std": 0.034801
+    },
+    "dr_compliant": {
+     "mean": 0.33,
+     "std": 0.060919
+    },
+    "dr_visible": {
+     "mean": 0.246667,
+     "std": 0.01633
+    },
+    "earliness_vs_rules": {
+     "mean": -1,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": -1.346889,
+     "std": 0.052219
+    },
+    "nested_fpr": {
+     "mean": 0.17619,
+     "std": 0.011761
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-quantile-context",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "context"
+   }
+  },
+  "if-quantile-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.74741,
+     "std": 0.012353
+    },
+    "auroc_compliant": {
+     "mean": 0.832848,
+     "std": 0.006944
+    },
+    "auroc_length_matched": {
+     "mean": 0.78483,
+     "std": 0.012518
+    },
+    "dr": {
+     "mean": 0.02,
+     "std": 0.018708
+    },
+    "dr_compliant": {
+     "mean": 0.04,
+     "std": 0.037417
+    },
+    "dr_visible": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "earliness_vs_rules": null,
+    "in_time": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": -3.266667,
+     "std": 0.188562
+    },
+    "nested_fpr": {
+     "mean": 0.134286,
+     "std": 0.002857
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-quantile-global",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "global"
+   }
+  },
+  "if-standard_floor-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.723038,
+     "std": 0.010061
+    },
+    "auroc_compliant": {
+     "mean": 0.808279,
+     "std": 0.007192
+    },
+    "auroc_length_matched": {
+     "mean": 0.774438,
+     "std": 0.009613
+    },
+    "dr": {
+     "mean": 0.19,
+     "std": 0.067165
+    },
+    "dr_compliant": {
+     "mean": 0.243333,
+     "std": 0.06377
+    },
+    "dr_visible": {
+     "mean": 0.136667,
+     "std": 0.071024
+    },
+    "earliness_vs_rules": {
+     "mean": -1,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": -1.638353,
+     "std": 0.358702
+    },
+    "nested_fpr": {
+     "mean": 0.211905,
+     "std": 0.018319
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-standard_floor-context",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "context"
+   }
+  },
+  "if-standard_floor-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.723038,
+     "std": 0.010061
+    },
+    "auroc_compliant": {
+     "mean": 0.808279,
+     "std": 0.007192
+    },
+    "auroc_length_matched": {
+     "mean": 0.774438,
+     "std": 0.009613
+    },
+    "dr": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "earliness_vs_rules": null,
+    "in_time": {
+     "mean": 0.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": null,
+    "nested_fpr": {
+     "mean": 0.131905,
+     "std": 0.002428
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "iforest",
+    "name": "if-standard_floor-global",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "global"
+   }
+  },
+  "ocsvm-nu0.05-quantile-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.943148,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.992174,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.950495,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.916667,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.833333,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 0.52,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.891667,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.463636,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.166667,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-quantile-context",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "context"
+   }
+  },
+  "ocsvm-nu0.05-quantile-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.943148,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.992174,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.950495,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.966667,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.333333,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 1.45,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.679487,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.121429,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-quantile-global",
+    "nu": 0.05,
+    "scaler": "quantile",
+    "threshold": "global"
+   }
+  },
+  "ocsvm-nu0.05-standard_floor-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.973727,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.998431,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.975468,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 0.483333,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.483333,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.211905,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-standard_floor-context",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "context"
+   }
+  },
+  "ocsvm-nu0.05-standard_floor-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.973727,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.998431,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.975468,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.966667,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.333333,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 1.45,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.74359,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.102381,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.05-standard_floor-global",
+    "nu": 0.05,
+    "scaler": "standard_floor",
+    "threshold": "global"
+   }
+  },
+  "ocsvm-nu0.10-quantile-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.934959,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.988022,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.94434,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.875,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.75,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 0.533333,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.833333,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.504762,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.15,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-quantile-context",
+    "nu": 0.1,
+    "scaler": "quantile",
+    "threshold": "context"
+   }
+  },
+  "ocsvm-nu0.10-quantile-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.934959,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.988022,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.94434,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.966667,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.333333,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 1.45,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.679487,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.095238,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-quantile-global",
+    "nu": 0.1,
+    "scaler": "quantile",
+    "threshold": "global"
+   }
+  },
+  "ocsvm-nu0.10-standard_floor-context": {
+   "agg": {
+    "auroc": {
+     "mean": 0.973435,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.998474,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.975361,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 0.483333,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 1.0,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.483333,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.2,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-standard_floor-context",
+    "nu": 0.1,
+    "scaler": "standard_floor",
+    "threshold": "context"
+   }
+  },
+  "ocsvm-nu0.10-standard_floor-global": {
+   "agg": {
+    "auroc": {
+     "mean": 0.973435,
+     "std": 0.0
+    },
+    "auroc_compliant": {
+     "mean": 0.998474,
+     "std": 0.0
+    },
+    "auroc_length_matched": {
+     "mean": 0.975361,
+     "std": 0.0
+    },
+    "dr": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "dr_compliant": {
+     "mean": 0.966667,
+     "std": 0.0
+    },
+    "dr_visible": {
+     "mean": 0.333333,
+     "std": 0.0
+    },
+    "earliness_vs_rules": {
+     "mean": 1.45,
+     "std": 0.0
+    },
+    "in_time": {
+     "mean": 0.65,
+     "std": 0.0
+    },
+    "mean_steps_before_harm": {
+     "mean": 0.74359,
+     "std": 0.0
+    },
+    "nested_fpr": {
+     "mean": 0.102381,
+     "std": 0.0
+    }
+   },
+   "config": {
+    "control": false,
+    "kind": "ocsvm",
+    "name": "ocsvm-nu0.10-standard_floor-global",
+    "nu": 0.1,
+    "scaler": "standard_floor",
+    "threshold": "global"
+   }
+  }
+ },
+ "selection": {
+  "eligible": [
+   "ocsvm-nu0.10-quantile-global"
+  ],
+  "reason": "highest dev DR-compliant among configs with nested FPR <= 10%",
+  "selected": "ocsvm-nu0.10-quantile-global"
+ }
+}
