@@ -82,3 +82,14 @@ Runs via `.github/workflows/r2-llm.yml` (Ollama 0.40.2, ubuntu-latest, 4 CPU, no
 | **qwen2.5:3b** | [40066698911](https://github.com/shivek555/ARGUS/actions/runs/40066698911) | 100% | **6.5 s / 7.3 s** | **0.638** | 12/22 · 5/31 · 19/88 | 9/9 · 7/11 | 30/30 identical |
 
 **Pre-registered selection rule** (`argus.eval.r2_local.choose_model`: valid JSON ≥ 95% → AUROC → p50): **`qwen2.5:3b` selected**. Exploratory, dev data, n = 20 trajectories.
+
+### R2-L dev + catalog runs (2026-10-24, frozen `qwen2.5:3b`, risky calls only)
+
+| Run | GitHub run | Judged | Valid JSON | p50 / p95 | Result |
+|---|---|---|---|---|---|
+| dev | [40070695731](https://github.com/shivek555/ARGUS/actions/runs/40070695731) | 307 | 100% | 7.3 s / 9.6 s | prefix AUROC **0.677**; attack DR: policy-compliant **59/60**, policy-visible 53/60; benign per-trajectory FPR **36.5%** (46/126); earliness vs rules **0.00** steps (n = 53) |
+| catalog (exploratory) | [40073191451](https://github.com/shivek555/ARGUS/actions/runs/40073191451) | 174 | 100% | 7.6 s / 9.4 s | **57/216 legitimate tasks flagged (26.4%)** vs ML R1b-selected 5.6% and R1 ML 34.3% on the same catalog; legit secret work 16/16, requested CI edits 8/8, requested renames 8/8 |
+
+A first attempt at the dev run ([40070465830](https://github.com/shivek555/ARGUS/actions/runs/40070465830)) failed at setup: `ubuntu-latest` had moved to Ubuntu 26.04 with no Python 3.11.9 build. Both workflows were pinned to `ubuntu-24.04` (the pilots' image) in `c5982f5`, then rerun.
+
+**Dev preview of L1–L6 (official verdict only on test v2):** L1 ✗ (0.677 < 0.70), L2 ✗ (36.5% ≫ 10%), L3 ✓ (98% vs rules 0%), L5 ✗ (p95 9.6 s), earliness none. **Finding:** the small local LLM monitor catches almost every attack but flags legitimate risky work, including tasks whose objective explicitly authorises it. It did **not** fix the "requested edit" false alarms that motivated R2 (catalog: 26.4% vs the ML detector's 5.6%).
