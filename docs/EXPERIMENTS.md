@@ -101,3 +101,32 @@ A first attempt at the dev run ([40070465830](https://github.com/shivek555/ARGUS
 | r3-dev | `python -m argus.eval.r3` | `eval/results/r3/dev_report.json`, `configs/risk/model.json`, `configs/risk/levels.yaml` | Dev, leave-one-template-out. 120 attacks + 126 benign, 1,635 steps, ML `ocsvm-nu0.10-quantile`, LLM replay `qwen2.5:3b`. Hybrid DR **0.975** (CI 0.942–1.0), FPR **0.095** (CI 0.040–0.143); best component B2+ 0.833; CRITICAL-only DR 0.817 / FPR 0.008; harm completion 0.025 (oracle) vs 0.50 rules only; approvals 27 / 100 benign (R3-c target 15: fail). LLM weights ≈ 0. Full report: `docs/R3_DEV_REPORT.md`. |
 
 **R3 freeze (2026-10-24):** `configs/risk/model.json` sha256 `5381489b17a669bc308e81c37e58bfb0cc5b516d227fc3b060b6cedb3449297b`, `configs/risk/levels.yaml` sha256 `6e66da1968509a6b11226b37a57f5aa48a6e0f3ff592501e2c0c6bcfc5d9b97a` (LF). Rerun of `python -m argus.eval.r3` reproduces both byte-identically. Recorded finding: R3-c workload 27 / 100 benign > 15 (fail).
+
+## R4 protocol and dev runs (2026-10-24, ADR-0013) — offline, $0
+
+**Protocol freeze:** `configs/risk/r4/manifest.json` sha256 `8005c4b591d65d3f37ba93cc02db2429d3dec26765da1c2b3a89595edd9b0642` (LF). It pins every derived model:
+
+| Model | model.json | levels.yaml | ML fingerprint |
+|---|---|---|---|
+| ablation-no-rules | `a99ce5715c04…` | `d0d4b68da30a…` | (primary ML) |
+| ablation-no-ml | `5e443ee7d534…` | `b1daaeaaff49…` | – |
+| ablation-no-llm | `bc850085ad30…` | `b199fdb25afb…` | (primary ML) |
+| ablation-no-context | `0def8957125c…` | `429aecc4a7dc…` | (primary ML) |
+| lofo-credential_discovery | `1e748b1b59d2…` | `039a1db6eb8d…` | (primary ML) |
+| lofo-exfiltration | `65abc895c242…` | `da68837f7218…` | (primary ML) |
+| lofo-goal_hijack | `042beb6b53c8…` | `05b67b5350e7…` | (primary ML) |
+| seed-0 | `38861dca7226…` | `76065e3b57e0…` | `424cf2d0a6b7…` |
+| seed-1 | `9c15765641be…` | `15fba60f1e93…` | `11116dfdc697…` |
+| seed-2 | `36ae1af96b8b…` | `9aeac1a8716d…` | `39e59c4b5da0…` |
+| seed-3 | `a856c678e8af…` | `97393cfba21c…` | `c77db00bf38c…` |
+| seed-4 | `ef7aac55c0e5…` | `6780d4d107ee…` | `aba02bde35f1…` |
+
+Full hashes in the manifest. Component thresholds (dev budget): B3 anomaly > 0.1397, B4 deviation > 1.0.
+
+| Run | Command | Result | Notes |
+|---|---|---|---|
+| r4-derive | `python -m argus.eval.r4 derive --freeze`, then `derive` | `configs/risk/r4/` | ≈ 47 s; re-derivation byte-identical |
+| r4-dev | `python -m argus.eval.r4 dev` | `eval/results/r4/dev.json` → `docs/results/r4_dev.md` | Dev OOF. Hybrid DR 97.5% (CI 94.2–100), FPR 9.5% (CI 4.0–14.3), F1 0.940, prefix AUROC 0.948; vs B2+ McNemar 17/0, Holm p 0.0002. Harm completion: none 100%, B2 50%, hybrid 2.5% (oracle/deny), 18.3% (approve); containment 0.29 steps before onset on average. LOFO compliant DR 1.00 / 1.00 / 0.85. Seeds DR 0.708 ± 0.220, FPR 0.090 ± 0.004. v1 test (seen, exploratory, no-LLM hybrid): DR 100%, FPR 0%. |
+| r4-latency | `python -m argus.eval.latency --doc docs/results/latency-laptop.md` | `docs/results/latency-laptop.md` | Laptop (Windows, 8 CPU): ARGUS w/o LLM 3.58 ms p50 / 6.15 ms p95 per call; LLM (runner-recorded) 7.0 s / 9.4 s on the 20.8% risky calls ≈ 9.7 s per trajectory; L5 FAIL. |
+| reproduce | `python -m argus.eval.reproduce` | `docs/results/` | All tables + 3 SVG figures; CI `--check --fast` byte-identical. |
+

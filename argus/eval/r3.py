@@ -57,6 +57,8 @@ FROZEN_SHA256 = {
 
 def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 POLICY_V3 = ROOT / "configs" / "policies" / "v3.yaml"
 ML_CONFIG = ("ocsvm", 0.10, "quantile")       # frozen R1b selection (ADR-0007)
 LLM_MODEL = "qwen2.5:3b"                        # frozen R2-L selection (ADR-0011)

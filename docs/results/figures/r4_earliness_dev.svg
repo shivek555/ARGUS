@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360" width="560" height="360" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<rect width="560" height="360" fill="#ffffff"/>
+<text x="56" y="20" font-size="14" font-weight="bold" fill="#1f2937">Hybrid: steps before harm (dev, detected in time)</text>
+<line x1="56" y1="312.0" x2="410" y2="312.0" stroke="#d1d5db"/>
+<text x="50" y="316.0" text-anchor="end" fill="#1f2937">0</text>
+<line x1="56" y1="256.8" x2="410" y2="256.8" stroke="#d1d5db"/>
+<text x="50" y="260.8" text-anchor="end" fill="#1f2937">15</text>
+<line x1="56" y1="201.6" x2="410" y2="201.6" stroke="#d1d5db"/>
+<text x="50" y="205.6" text-anchor="end" fill="#1f2937">30</text>
+<line x1="56" y1="146.4" x2="410" y2="146.4" stroke="#d1d5db"/>
+<text x="50" y="150.4" text-anchor="end" fill="#1f2937">45</text>
+<line x1="56" y1="91.2" x2="410" y2="91.2" stroke="#d1d5db"/>
+<text x="50" y="95.2" text-anchor="end" fill="#1f2937">60</text>
+<line x1="56" y1="36.0" x2="410" y2="36.0" stroke="#d1d5db"/>
+<text x="50" y="40.0" text-anchor="end" fill="#1f2937">75</text>
+<rect x="56" y="36" width="354" height="276" fill="none" stroke="#1f2937"/>
+<text x="233.0" y="350" text-anchor="middle" fill="#1f2937">Steps between first flag and harm step</text>
+<text x="14" y="174.0" text-anchor="middle" fill="#1f2937" transform="rotate(-90 14 174.0)">Attacks</text>
+<rect x="58.0" y="36.0" width="66.8" height="276.0" fill="#2563eb"><title>0: 75</title></rect>
+<text x="91.4" y="328" text-anchor="middle" fill="#1f2937">0</text>
+<rect x="128.8" y="242.1" width="66.8" height="69.9" fill="#2563eb"><title>1: 19</title></rect>
+<text x="162.2" y="328" text-anchor="middle" fill="#1f2937">1</text>
+<rect x="199.6" y="249.4" width="66.8" height="62.6" fill="#2563eb"><title>2: 17</title></rect>
+<text x="233.0" y="328" text-anchor="middle" fill="#1f2937">2</text>
+<rect x="270.4" y="297.3" width="66.8" height="14.7" fill="#2563eb"><title>3: 4</title></rect>
+<text x="303.8" y="328" text-anchor="middle" fill="#1f2937">3</text>
+<rect x="341.2" y="304.6" width="66.8" height="7.4" fill="#2563eb"><title>4: 2</title></rect>
+<text x="374.6" y="328" text-anchor="middle" fill="#1f2937">4</text>
+<rect x="422" y="37" width="12" height="12" fill="#2563eb"/>
+<text x="440" y="47" fill="#1f2937">Hybrid</text>
+</svg>

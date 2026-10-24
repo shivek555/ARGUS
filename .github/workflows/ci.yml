@@ -23,7 +23,7 @@ jobs:
   research:
     name: Research code (tests + benchmark integrity)
     runs-on: ubuntu-24.04   # pinned: ubuntu-latest moved to 26.04 (no Python 3.11.9 build)
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -51,6 +51,15 @@ jobs:
 
       - name: Dev v2 benign regenerates byte-identically
         run: python -m argus.bench.benign_v2 --check
+
+      - name: Frozen R4 models re-derive byte-identically (ADR-0013)
+        run: python -m argus.eval.r4 derive
+
+      - name: Results tables and figures reproduce byte-identically (docs/results, R1b grid skipped)
+        run: python -m argus.eval.reproduce --check --fast
+
+      - name: Per-call latency on the CI runner (RQ5; informational, not checked)
+        run: python -m argus.eval.latency --calls 2000
 
       # Only once the teammate's blind split exists (R1b-1). Checks the frozen
       # file; it never prints or analyses the trajectories.

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360" width="560" height="360" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<rect width="560" height="360" fill="#ffffff"/>
+<text x="56" y="20" font-size="14" font-weight="bold" fill="#1f2937">Detection rate vs benign budget (dev)</text>
+<line x1="56.0" y1="36" x2="56.0" y2="312" stroke="#d1d5db"/>
+<text x="56.0" y="328" text-anchor="middle" fill="#1f2937">0.00</text>
+<line x1="126.8" y1="36" x2="126.8" y2="312" stroke="#d1d5db"/>
+<text x="126.8" y="328" text-anchor="middle" fill="#1f2937">0.06</text>
+<line x1="197.6" y1="36" x2="197.6" y2="312" stroke="#d1d5db"/>
+<text x="197.6" y="328" text-anchor="middle" fill="#1f2937">0.12</text>
+<line x1="268.4" y1="36" x2="268.4" y2="312" stroke="#d1d5db"/>
+<text x="268.4" y="328" text-anchor="middle" fill="#1f2937">0.18</text>
+<line x1="339.2" y1="36" x2="339.2" y2="312" stroke="#d1d5db"/>
+<text x="339.2" y="328" text-anchor="middle" fill="#1f2937">0.24</text>
+<line x1="410.0" y1="36" x2="410.0" y2="312" stroke="#d1d5db"/>
+<text x="410.0" y="328" text-anchor="middle" fill="#1f2937">0.30</text>
+<line x1="56" y1="312.0" x2="410" y2="312.0" stroke="#d1d5db"/>
+<text x="50" y="316.0" text-anchor="end" fill="#1f2937">0.0</text>
+<line x1="56" y1="256.8" x2="410" y2="256.8" stroke="#d1d5db"/>
+<text x="50" y="260.8" text-anchor="end" fill="#1f2937">0.2</text>
+<line x1="56" y1="201.6" x2="410" y2="201.6" stroke="#d1d5db"/>
+<text x="50" y="205.6" text-anchor="end" fill="#1f2937">0.4</text>
+<line x1="56" y1="146.4" x2="410" y2="146.4" stroke="#d1d5db"/>
+<text x="50" y="150.4" text-anchor="end" fill="#1f2937">0.6</text>
+<line x1="56" y1="91.2" x2="410" y2="91.2" stroke="#d1d5db"/>
+<text x="50" y="95.2" text-anchor="end" fill="#1f2937">0.8</text>
+<line x1="56" y1="36.0" x2="410" y2="36.0" stroke="#d1d5db"/>
+<text x="50" y="40.0" text-anchor="end" fill="#1f2937">1.0</text>
+<rect x="56" y="36" width="354" height="276" fill="none" stroke="#1f2937"/>
+<text x="233.0" y="350" text-anchor="middle" fill="#1f2937">Benign trajectories flagged</text>
+<text x="14" y="174.0" text-anchor="middle" fill="#1f2937" transform="rotate(-90 14 174.0)">Attack trajectories detected</text>
+<polyline fill="none" stroke="#2563eb" stroke-width="2" points="56.0,132.6 79.6,130.3 103.2,88.9 126.8,86.6 150.4,56.7 174.0,42.9 197.6,38.3 221.2,38.3 244.8,38.3 268.4,38.3 292.0,38.3 315.6,36.0 339.2,36.0 362.8,36.0 386.4,36.0 410.0,36.0"><title>Hybrid</title></polyline>
+<polyline fill="none" stroke="#dc2626" stroke-width="2" points="56.0,185.5 79.6,178.6 103.2,174.0 126.8,174.0 150.4,160.2 174.0,134.9 197.6,132.6 221.2,130.3 244.8,130.3 268.4,130.3 292.0,130.3 315.6,114.2 339.2,102.7 362.8,98.1 386.4,88.9 410.0,86.6"><title>B3_ml</title></polyline>
+<polyline fill="none" stroke="#16a34a" stroke-width="2" points="56.0,312.0 79.6,312.0 103.2,312.0 126.8,312.0 150.4,312.0 174.0,312.0 197.6,312.0 221.2,312.0 244.8,312.0 268.4,75.1 292.0,75.1 315.6,75.1 339.2,75.1 362.8,75.1 386.4,75.1 410.0,75.1"><title>B4_llm</title></polyline>
+<rect x="422" y="37" width="12" height="12" fill="#2563eb"/>
+<text x="440" y="47" fill="#1f2937">Hybrid</text>
+<rect x="422" y="55" width="12" height="12" fill="#dc2626"/>
+<text x="440" y="65" fill="#1f2937">B3_ml</text>
+<rect x="422" y="73" width="12" height="12" fill="#16a34a"/>
+<text x="440" y="83" fill="#1f2937">B4_llm</text>
+</svg>
