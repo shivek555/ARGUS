@@ -115,7 +115,7 @@ def parse_progress(path: Path = PROGRESS) -> dict[str, Any]:
     phases, gates = [], []
     for line in text.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.startswith("|") else []
-        if len(cells) == 4 and re.match(r"^(R\d+b?|W|P)$", cells[0]):
+        if len(cells) == 4 and re.match(r"^(R\d+b?|W|LA|P)$", cells[0]):
             phases.append({"phase": cells[0], "focus": cells[1], "gate": cells[2], "status": cells[3]})
         elif len(cells) == 2 and re.match(r"^(G\d|Phase 0)", cells[0]):
             gates.append({"gate": cells[0], "status": cells[1]})

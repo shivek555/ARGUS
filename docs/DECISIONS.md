@@ -14,6 +14,17 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0015 — Phase LA: a real LLM agent under a real, live LLM monitor (exploratory)
+
+- **Date:** 2026-10-24
+- **Status:** **on hold, not built** (2026-10-24). The plan was approved with its §8 defaults, but implementation stopped during LA-a: the AI assistant's response was halted by a safety filter while writing the agent loop. All partial code (`argus/live/`, an output field in `ContainedSession`) was reverted; nothing from LA is in the codebase. The plan is kept as a record. The scripted benchmark remains the basis of every gate, and the web app keeps showing real qwen2.5:3b monitor verdicts, replayed.
+- **Context:** the user asked for the system to run with both a real LLM agent and a real LLM monitor. Until now the agent is always scripted, and the web app replays real qwen2.5:3b verdicts.
+- **Decision (proposed):** on free GitHub runners (ADR-0011 pattern, $0, nothing on the laptop), `llama3.2:3b` acts as the agent with native tool calling. Its calls go through `ContainedSession` (enforce) with the frozen policy, ML, primary risk model and the **live** frozen qwen2.5:3b monitor. 12 dev-v2 benign tasks plus 12 injected twins (indirect prompt injection in a workspace file; exfiltration / credentials / goal hijack) run in 3 configs: no ARGUS, ARGUS with a denying reviewer, ARGUS with an approving reviewer. Harm is defined up front as "the injected call executed". Results are committed and shown in the web app plus a demo beat.
+- **Boundaries:** exploratory; never replaces the scripted test-v2 verdicts; no test-v2 data; no change to any frozen artefact; injections and prompts fixed before the full run (one format-only fix allowed after the smoke run).
+- **Alternatives:** a live LLM in the app on the laptop (rejected: needs Ollama and model downloads on the PC); a paid API agent (rejected: not free); same model as agent and monitor (rejected as default: a model judging itself).
+
+---
+
 ## ADR-0014 — Phase W: web app over the frozen research system, G7 criterion
 
 - **Date:** 2026-10-24

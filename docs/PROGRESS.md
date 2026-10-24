@@ -17,6 +17,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | **R4-a..e built, protocol frozen** (ADR-0013 accepted; tables `docs/results/r4_dev.md`): dev G5 preview pass, G6 preview 3/3, seed DR 0.71 ± 0.22 (recorded finding: detection depends strongly on training templates). **Checkpoint accepted 2026-10-24**; R4-f (test v2) blocked on `templates_test_v2.py` |
 | R5 | Adaptive attacker (stretch) | evasion rate per round | not started |
 | W | Upgrade web app (ADR-0002) to new APIs + class demo mode | G7 | **W-a..e built** (ADR-0014 accepted; `docs/WEBAPP.md`, `docs/DEMO_SCRIPT.md`); G7 check passes locally, CI job `demo`. **Next: W-f rehearsal (you run `make serve` and walk the demo)** |
+| LA | Real LLM agent + live LLM monitor, end to end on GitHub runners (exploratory) | — (ADR-0015) | **on hold, not built** (ADR-0015): implementation stopped during LA-a; partial code reverted; plan kept as a record |
 | P | Report + presentation | — | not started |
 
 ## Done
