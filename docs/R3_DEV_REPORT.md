@@ -1,8 +1,8 @@
 # R3 dev report: risk engine, explanations, containment, approval queue
 
-**Status:** dev checkpoint, waiting for review (ADR-0012). All numbers are **dev, out-of-fold**. The official G5 verdict comes only from test v2. `configs/risk/model.json` and `configs/risk/levels.yaml` are frozen once this report is accepted.
+**Status:** **accepted 2026-10-24; model and levels frozen** (ADR-0012). All numbers are **dev, out-of-fold**. The official G5 verdict comes only from test v2. Frozen: `configs/risk/model.json` sha256 `5381489b17a6…`, `configs/risk/levels.yaml` sha256 `6e66da196850…` (full hashes in ADR-0012).
 
-Reproduce (offline, $0, about 11 s): `python -m argus.eval.r3` → `eval/results/r3/dev_report.json` (gitignored), `configs/risk/model.json`, `configs/risk/levels.yaml`. Tests: `tests/test_r3.py`.
+Reproduce (offline, $0, about 11 s): `python -m argus.eval.r3` → `eval/results/r3/dev_report.json` plus candidate `model.json` / `levels.yaml` there (gitignored); the frozen files in `configs/risk/` are never rewritten, and the report's `frozen` field confirms the rerun is byte-identical. Tests: `tests/test_r3.py`.
 
 ## Data
 
@@ -79,11 +79,10 @@ Each trajectory is replayed through `ContainedSession` with its own out-of-fold 
 1. **The LLM adds almost nothing.** Its weights are ≈ 0 (deviation +0.03, escalate −0.04). At the 10% budget the LLM score catches 0%, and removing the LLM *raises* DR slightly (0.983). Its native ESCALATE catches 93% but flags 36.5% of benign work. The gains come from ML anomaly + context signals + the B2+ rule.
 2. **The rules group looks redundant on dev.** Without it, DR is 0.992. The policy gateway still blocks authoritatively in deployment, so this changes nothing about enforcement. It means the learned weights for the rule signals carry no extra information beyond ML + context on this data.
 3. **Negative weights on `objective_mention` and `privilege` are dataset effects.** Dev v2 benign work often names its targets and handles credentials legitimately in the secrets context. Explanations show them as risk-lowering. A reviewer should know these signals can be gamed by an attacker who names the target in the objective (R5).
-4. **R3-c FAILS: 27 approvals per 100 benign tasks vs the ≤ 15 target.** 9.5% of benign trajectories reach HIGH, but each flagged trajectory holds about 2.8 calls (27 / 9.5). Per-call holds, not per-trajectory, drive the workload. A possible fix (escalate once per trajectory, then MONITOR) would be a new ADR, decided before test v2.
+4. **R3-c FAILS (recorded finding, accepted unfixed): 27 approvals per 100 benign tasks vs the ≤ 15 target.** 9.5% of benign trajectories reach HIGH, but each flagged trajectory holds about 2.8 calls (27 / 9.5). Per-call holds, not per-trajectory, drive the workload. A possible fix (escalate once per trajectory, then MONITOR) was considered and **not adopted**; the test-v2 run reports workload with the frozen per-call design.
 5. **Humans matter.** If the reviewer approves everything, harm completion rises from 2.5% to 18.3%. If the reviewer denies everything, 9.5% of benign tasks are disrupted.
 6. **Scope limits:** n = 126 benign / 120 attacks, all synthetic. Goal hijack is the weakest family (0.925 unseen, 0.50 at CRITICAL only).
 
-## Decision needed at this checkpoint
+## Checkpoint decision (2026-10-24)
 
-- Accept the frozen model and levels as they are, **or**
-- Amend before freezing (for example per-trajectory escalation for R3-c, or dropping the LLM group). Any amendment goes in a new ADR and is rerun on dev only.
+Accepted as is: model and levels frozen, no amendment. The R3-c workload failure stays a reported finding. Next R3 work needing data is the test-v2 run (blocked on `argus/bench/templates_test_v2.py`).

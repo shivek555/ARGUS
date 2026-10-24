@@ -1,7 +1,10 @@
 """R3-f: dev evaluation of the risk engine (docs/PLAN_R3_RISK_ENGINE.md §7). DEV ONLY.
 
     python -m argus.eval.r3   → eval/results/r3/dev_report.json
-                               + configs/risk/model.json, configs/risk/levels.yaml (frozen after review)
+                               + candidate model.json / levels.yaml next to it
+
+configs/risk/model.json and levels.yaml were frozen 2026-10-24 (ADR-0012) and are
+never rewritten by this runner; the report says whether a rerun reproduces them.
 
 Data: the 120 v1 dev attacks + the 126 dev-v2 benign trajectories the LLM was
 run on (R2-L dev run). Benign trajectories without LLM verdicts are NOT used:
@@ -17,6 +20,7 @@ Honesty measures:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 from collections import defaultdict
@@ -44,6 +48,15 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "eval" / "results" / "r3" / "dev_report.json"
 MODEL_PATH = ROOT / "configs" / "risk" / "model.json"
 LEVELS_PATH = ROOT / "configs" / "risk" / "levels.yaml"
+# Frozen at the R3 dev checkpoint (ADR-0012); sha256 of the file with LF line endings.
+FROZEN_SHA256 = {
+    "model.json": "5381489b17a669bc308e81c37e58bfb0cc5b516d227fc3b060b6cedb3449297b",
+    "levels.yaml": "6e66da1968509a6b11226b37a57f5aa48a6e0f3ff592501e2c0c6bcfc5d9b97a",
+}
+
+
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 POLICY_V3 = ROOT / "configs" / "policies" / "v3.yaml"
 ML_CONFIG = ("ocsvm", 0.10, "quantile")       # frozen R1b selection (ADR-0007)
 LLM_MODEL = "qwen2.5:3b"                        # frozen R2-L selection (ADR-0011)
@@ -308,8 +321,10 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         sims = [simulate(trajs, pts, lv, h, model, Path(tmp) / h) for h in ("oracle", "always_deny", "always_approve")]
 
-    model.save(MODEL_PATH)
-    lv.save(LEVELS_PATH, {"command": "python -m argus.eval.r3", "ml": "-".join(map(str, ML_CONFIG)),
+    cand_model, cand_levels = OUT.parent / "model.json", OUT.parent / "levels.yaml"
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    model.save(cand_model)
+    lv.save(cand_levels, {"command": "python -m argus.eval.r3", "ml": "-".join(map(str, ML_CONFIG)),
                           "llm": LLM_MODEL, "n_benign_trajectories": sum(not tr.is_attack for tr in trajs)})
     report = {
         "command": "python -m argus.eval.r3",
@@ -329,11 +344,13 @@ def main(argv: list[str] | None = None) -> int:
         "sensitivity_C": sensitivity,
         "leave_one_family_out": lofo(trajs, names),
         "containment": {"rules_only_harm_completion": rules_only_harm(trajs), "hybrid": sims},
+        "frozen": {name: {"sha256": sha, "rerun_reproduces": file_sha256(OUT.parent / name) == sha}
+                   for name, sha in FROZEN_SHA256.items()},
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(json.dumps({k: report[k] for k in ("data", "levels", "g5_preview")}, indent=2))
-    print(f"wrote {OUT}, {MODEL_PATH}, {LEVELS_PATH}")
+    print(json.dumps({k: report[k] for k in ("data", "levels", "g5_preview", "frozen")}, indent=2))
+    print(f"wrote {OUT}, {cand_model}, {cand_levels} (frozen {MODEL_PATH.name}/{LEVELS_PATH.name} untouched)")
     return 0
 
 

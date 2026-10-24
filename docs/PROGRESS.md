@@ -13,7 +13,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 | R1 | Features v2 + AgentEscapeBench v1 (3 families, policy-compliant variants, hard benign, frozen test split) + IF/OC-SVM | G4 | **FAIL** — AUROC passes, FPR 32% blocks G4-b/c |
 | R1b | RESCUE-2: compositional benign, per-context LOIO calibration, B2+ rules, blind test v2 | G4-R2 | **in progress** (R1b-3 ready; waiting on test v2) |
 | R2 | Live LLM intent monitor, cached replay, injection-safe | L1–L6 (ADR-0009) | **R2-a/b/c done**; user requires $0 → **R2L-a done** (adapter + runner + `r2-llm.yml`, ADR-0011 accepted); **next: you click Run workflow (smoke)** |
-| R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | G5 (ADR-0012) | **built; dev checkpoint** (`docs/R3_DEV_REPORT.md`): hybrid DR 0.975 / FPR 0.095 vs B2+ 0.833 (G5 dev preview pass); R3-c workload 27/100 fails ≤ 15; awaiting review before freezing weights/levels |
+| R3 | Calibrated risk engine, per-signal explanations, containment, approval queue | G5 (ADR-0012) | **dev done, frozen 2026-10-24** (`docs/R3_DEV_REPORT.md`, ADR-0012 accepted): hybrid DR 0.975 / FPR 0.095 vs B2+ 0.833 (G5 dev preview pass); R3-c workload 27/100 fails ≤ 15 (recorded finding). Official G5 waits on test v2 |
 | R4 | Baselines + hybrid + ablations, open-set, ≥5 seeds, CIs, latency, `make reproduce` | G5, G6 | not started |
 | R5 | Adaptive attacker (stretch) | evasion rate per round | not started |
 | W | Upgrade web app (ADR-0002) to new APIs + class demo mode | G7 | parked (v0 app exists) |

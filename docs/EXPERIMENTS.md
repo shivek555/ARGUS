@@ -99,3 +99,5 @@ A first attempt at the dev run ([40070465830](https://github.com/shivek555/ARGUS
 | Run | Command | Result | Notes |
 |---|---|---|---|
 | r3-dev | `python -m argus.eval.r3` | `eval/results/r3/dev_report.json`, `configs/risk/model.json`, `configs/risk/levels.yaml` | Dev, leave-one-template-out. 120 attacks + 126 benign, 1,635 steps, ML `ocsvm-nu0.10-quantile`, LLM replay `qwen2.5:3b`. Hybrid DR **0.975** (CI 0.942–1.0), FPR **0.095** (CI 0.040–0.143); best component B2+ 0.833; CRITICAL-only DR 0.817 / FPR 0.008; harm completion 0.025 (oracle) vs 0.50 rules only; approvals 27 / 100 benign (R3-c target 15: fail). LLM weights ≈ 0. Full report: `docs/R3_DEV_REPORT.md`. |
+
+**R3 freeze (2026-10-24):** `configs/risk/model.json` sha256 `5381489b17a669bc308e81c37e58bfb0cc5b516d227fc3b060b6cedb3449297b`, `configs/risk/levels.yaml` sha256 `6e66da1968509a6b11226b37a57f5aa48a6e0f3ff592501e2c0c6bcfc5d9b97a` (LF). Rerun of `python -m argus.eval.r3` reproduces both byte-identically. Recorded finding: R3-c workload 27 / 100 benign > 15 (fail).

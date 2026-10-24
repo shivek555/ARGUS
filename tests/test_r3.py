@@ -281,3 +281,13 @@ def test_out_of_fold_points_never_see_own_template(trajs):
     for t, a, b in zip(trajs, pts, pts2):
         if t.group == g:
             assert a == pytest.approx(b)
+
+
+def test_frozen_risk_files_unchanged():
+    """ADR-0012: model.json and levels.yaml are frozen; edits need a new ADR."""
+    from argus.eval import r3
+    assert r3.file_sha256(r3.MODEL_PATH) == r3.FROZEN_SHA256["model.json"]
+    assert r3.file_sha256(r3.LEVELS_PATH) == r3.FROZEN_SHA256["levels.yaml"]
+    engine = RiskEngine(RiskModel.load(r3.MODEL_PATH), Levels.load(r3.LEVELS_PATH))
+    assert engine.levels.medium < engine.levels.high < engine.levels.critical
+
