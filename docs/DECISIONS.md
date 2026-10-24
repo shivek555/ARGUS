@@ -26,6 +26,7 @@ Short ADRs. Newest first. Do not hide disagreements.
   - **Scope:** judge **risky calls only**, about 1–2k judgements instead of about 11.8k.
   - **Run limits:** a wall-clock cap (default 5 h 20 min, under the 6 h job limit) replaces the dollar cap; long runs are sharded and resume from the cache.
   - **Unchanged:** L1–L6 and the test-v2-once rule.
+- **Frozen 2026-10-24 (R2L-d):** model **`qwen2.5:3b`**, selected by the pre-registered rule on the dev pilot (both candidates 100% valid JSON; AUROC 0.638 vs 0.614 for llama3.2:3b), prompt `monitor-v1` + Ollama schema hint, `temperature 0`, `seed 0`, Ollama 0.40.2. No further prompt or model changes before the test-v2 run.
 - **Expected and accepted:** lower judgement quality than frontier APIs, and L5 latency likely failing on CPU. Both are reported as RQ4/RQ5 findings.
 - **Supersedes:** ADR-0010's "OpenAI is the default for live runs". The OpenAI and Claude adapters remain for anyone with a key.
 - **Alternatives:** OpenAI `gpt-6-luna` (pilot ≈ $0.10, full plan ≈ $3–6; rejected because not free); no LLM at all, keeping the mock heuristic (rejected: R2 would answer nothing).

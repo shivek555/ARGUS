@@ -71,3 +71,14 @@ The v1 test split was used once for the R1 G4 run (row `r1-test`). Further evalu
 | catalog-check | 2026-10-23 | `python -m argus.eval.catalog_check` | `eval/results/catalog/summary.json` (sha256 `2cd76ac213f9…`) | Exploratory, benign only: 216 legit tasks / 27 categories. Policy blocks 0. False alarms: R1b-selected 6%, R1 detector 34%. All residual alarms at requested `fs_write`. `docs/BENIGN_CATALOG.md`. |
 
 Blind test v2: **TODO: not yet delivered** (teammate, `docs/TEST_V2_AUTHORING.md`). Its hash goes here in the `test-v2 freeze:` commit.
+
+## R2-L pilot (2026-10-24, ADR-0011) — free open-weights monitor on GitHub-hosted runners
+
+Runs via `.github/workflows/r2-llm.yml` (Ollama 0.40.2, ubuntu-latest, 4 CPU, no GPU), `run = pilot` = the fixed 20 dev trajectories, every step (141 judgements per model). Results committed by the workflow: `eval/r2l/pilot/*.json`, cache `argus/intent/cache/ollama/*/pilot-shard0of1.jsonl`. Cost $0.
+
+| Model | Run | Valid JSON | p50 / p95 latency | Prefix AUROC (unsafe vs benign steps) | ESC/BLOCK: unsafe / precursor / benign steps | Trajectories flagged: attacks / benign | Determinism re-check |
+|---|---|---|---|---|---|---|---|
+| llama3.2:3b | [40063723080](https://github.com/shivek555/ARGUS/actions/runs/40063723080) | 100% | 14.7 s / 18.0 s | 0.614 | 16/22 · 9/31 · 32/88 | 9/9 · 9/11 | 30/30 identical |
+| **qwen2.5:3b** | [40066698911](https://github.com/shivek555/ARGUS/actions/runs/40066698911) | 100% | **6.5 s / 7.3 s** | **0.638** | 12/22 · 5/31 · 19/88 | 9/9 · 7/11 | 30/30 identical |
+
+**Pre-registered selection rule** (`argus.eval.r2_local.choose_model`: valid JSON ≥ 95% → AUROC → p50): **`qwen2.5:3b` selected**. Exploratory, dev data, n = 20 trajectories.

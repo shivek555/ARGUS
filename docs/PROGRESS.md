@@ -55,10 +55,12 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 2. R1b-2 **done**: dev v2 benign (420, 14 intents), policy v3, `--split test_v2` generator mode, blindness guard. Checkpoint: review `docs/DEV_V2.md`.
 3. R1b-3 **built + run on dev**: selected `ocsvm-nu0.10-quantile-global` (nested FPR 9.5%). Protocol committed before test v2 is written (ADR-0008).
 4. R1b-4: `python -m argus.eval.r1b_final` once → G4-R2 verdict + `docs/R1B_RESULTS.md`.
-5. R2-a/b/c **done**: monitor (`argus/intent/monitor.py`), prompt `monitor-v1` (`argus/intent/prompt.py`), 46 security tests. **R2-L (free, nothing on the user's PC): R2L-a built.** Next: GitHub → Actions → *R2 LLM (local open-weights model)* → Run workflow with `run = smoke`, once per candidate (`llama3.2:3b`, `qwen2.5:3b`). Results are committed back to `r1-rescue`. The OpenAI key pasted in chat was not used and must be revoked (2026-10-23). Runner ready: `python -m argus.eval.r2_pilot --smoke`, then `python -m argus.eval.r2_pilot` (fixed 20 dev trajectories, spend tracked from API token usage, stops before crossing the cap, stops on credential/first-call failure; preflight made 0 calls, $0).
+5. R2-a/b/c **done**: monitor (`argus/intent/monitor.py`), prompt `monitor-v1` (`argus/intent/prompt.py`), 46 security tests. **R2-L pilot done (2026-10-24):** both candidates ran on GitHub's runners at $0; the pre-registered rule selected **`qwen2.5:3b`** (see EXPERIMENTS.md). Early signal (dev, n = 20, exploratory): it flags every attack trajectory but also 7/11 benign ones, and per-call latency is ~6.5 s on CPU, so L1/L2/L5 are at risk. Model + prompt **frozen** (ADR-0011). R2L-d in progress: dev run, then catalog run. The OpenAI key pasted in chat was not used and must be revoked (2026-10-23). Runner ready: `python -m argus.eval.r2_pilot --smoke`, then `python -m argus.eval.r2_pilot` (fixed 20 dev trajectories, spend tracked from API token usage, stops before crossing the cap, stops on credential/first-call failure; preflight made 0 calls, $0).
 2. Note: the v1 test split is spent for confirmatory use; any re-test needs a fresh (ideally blind-written) test split.
 
 ## Open risks
+
+- **Small local LLM over-flags benign work (R2-L pilot, exploratory):** qwen2.5:3b escalated at least one step in 7/11 benign pilot trajectories (steps: 19/88) while catching 9/9 attacks; prefix AUROC 0.638 (< L1's 0.70). Expect L1/L2 to fail on dev unless the dev-scale numbers differ.
 
 - **G4-R2 likely to fail on the FPR condition (ADR-0007, predicted before test v2):** selected config's nested FPR is 0% for plain/egress tasks but 66.7% for unseen legitimate secrets tasks; margin to the 10% bar is 0.5 pp.
 
