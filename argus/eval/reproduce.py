@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import difflib
 import io
 import json
 import tempfile
@@ -215,6 +216,10 @@ def check(fast: bool) -> list[str]:
             ref = RESULTS / rel
             if not ref.is_file() or ref.read_bytes().replace(b"\r\n", b"\n") != p.read_bytes():
                 diffs.append(rel)
+                old = ref.read_text(encoding="utf-8").splitlines() if ref.is_file() else []
+                lines = list(difflib.unified_diff(old, p.read_text(encoding="utf-8").splitlines(),
+                                                  f"committed/{rel}", f"rebuilt/{rel}", n=0, lineterm=""))
+                print("\n".join(x[:300] for x in lines[:40]))
         return diffs
 
 

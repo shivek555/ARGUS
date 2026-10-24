@@ -33,7 +33,7 @@ import numpy as np
 from argus.bench.dataset import POLICY_V2, harm_step, replay
 from argus.bench.steps import Trajectory
 from argus.containment.session import ApprovalQueue, ContainedSession
-from argus.eval import r1b
+from argus.eval import numeric, r1b
 from argus.eval.r1 import Prepared
 from argus.eval.r2_local import CACHE_ROOT
 from argus.bench.dataset import build_world
@@ -346,7 +346,9 @@ def main(argv: list[str] | None = None) -> int:
         "sensitivity_C": sensitivity,
         "leave_one_family_out": lofo(trajs, names),
         "containment": {"rules_only_harm_completion": rules_only_harm(trajs), "hybrid": sims},
-        "frozen": {name: {"sha256": sha, "rerun_reproduces": file_sha256(OUT.parent / name) == sha}
+        # Byte identity holds only on the OS that wrote the frozen files; elsewhere compare numerically.
+        "frozen": {name: {"sha256": sha, "byte_identical": file_sha256(OUT.parent / name) == sha,
+                          "rerun_reproduces": not numeric.file_diff(OUT.parent / name, MODEL_PATH.parent / name)[0]}
                    for name, sha in FROZEN_SHA256.items()},
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)

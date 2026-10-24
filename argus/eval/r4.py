@@ -33,7 +33,7 @@ import numpy as np
 
 from argus.bench.dataset import POLICY_V2, build_world, harm_step, replay
 from argus.containment.session import ApprovalQueue, ContainedSession
-from argus.eval import r1, r1b, r3
+from argus.eval import numeric, r1, r1b, r3
 from argus.eval.metrics import (Outcome, bootstrap_ci, earliness, holm, mcnemar_exact, prefix_auroc, roc_points,
                                 traj_stats)
 from argus.policy.engine import PolicyEngine
@@ -163,59 +163,9 @@ def load_derived(name: str, root: Path = DERIVED) -> RiskEngine:
     return RiskEngine(RiskModel.load(root / name / "model.json"), Levels.load(root / name / "levels.yaml"))
 
 
-# Cross-platform re-derivation check. Floating-point results differ in the last digits between
-# Windows and Linux numeric libraries, so a rerun elsewhere is compared numerically, not by bytes.
-# Hashes of the frozen files (computed from these platform-specific bytes) and the ML fingerprint
-# (scores rounded to 6 dp) are platform-specific and therefore excluded from the comparison.
-REL_TOL = 1e-6
-PLATFORM_SPECIFIC_KEYS = frozenset({"files", "ml_fingerprint"})
-
-
-def _load_any(path: Path) -> Any:
-    import yaml
-    text = path.read_text(encoding="utf-8")
-    return json.loads(text) if path.suffix == ".json" else yaml.safe_load(text)
-
-
-def _walk(a: Any, b: Any, where: str, out: list[str]) -> float:
-    """Mismatches appended to ``out``; returns the largest relative numeric difference seen."""
-    if isinstance(a, bool) or isinstance(b, bool) or not (isinstance(a, (int, float)) and isinstance(b, (int, float))):
-        if isinstance(a, dict) and isinstance(b, dict):
-            worst = 0.0
-            for k in sorted(set(a) | set(b)):
-                if k in PLATFORM_SPECIFIC_KEYS:
-                    continue
-                if k not in a or k not in b:
-                    out.append(f"{where}.{k}: missing")
-                    continue
-                worst = max(worst, _walk(a[k], b[k], f"{where}.{k}", out))
-            return worst
-        if isinstance(a, list) and isinstance(b, list):
-            if len(a) != len(b):
-                out.append(f"{where}: length {len(a)} != {len(b)}")
-                return 0.0
-            return max([_walk(x, y, f"{where}[{i}]", out) for i, (x, y) in enumerate(zip(a, b))], default=0.0)
-        if a != b:
-            out.append(f"{where}: {a!r} != {b!r}")
-        return 0.0
-    rel = abs(a - b) / max(1.0, abs(a), abs(b))
-    if rel > REL_TOL:
-        out.append(f"{where}: {a!r} != {b!r}")
-    return rel
-
-
-def numeric_diff(a: Path, b: Path) -> tuple[list[str], float]:
-    """Semantic differences between two derived-model directories (numbers within REL_TOL)."""
-    names = sorted({p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file()} |
-                   {p.relative_to(b).as_posix() for p in b.rglob("*") if p.is_file()})
-    out: list[str] = []
-    worst = 0.0
-    for n in names:
-        if not ((a / n).is_file() and (b / n).is_file()):
-            out.append(f"{n}: missing")
-            continue
-        worst = max(worst, _walk(_load_any(a / n), _load_any(b / n), n, out))
-    return out, worst
+# Cross-platform re-derivation check: numbers within a relative tolerance (argus.eval.numeric).
+REL_TOL = numeric.REL_TOL
+numeric_diff = numeric.dir_diff
 
 
 def compare_dirs(a: Path, b: Path) -> list[str]:
@@ -314,7 +264,10 @@ def summarize(trajs: list[r3.Traj], flags: list[list[bool]], rules: list[Outcome
 
 def dev_report(trajs: list[r3.Traj], dev: r1b.DevData, derived: Path = DERIVED) -> dict[str, Any]:
     manifest = json.loads((derived / "manifest.json").read_text(encoding="utf-8"))
-    thr = manifest["component_thresholds"]
+    # On dev each budget threshold equals some benign score exactly, so recompute it in this run (equal to
+    # the frozen manifest value up to float noise) instead of comparing against another OS's digits.
+    thr = {"B3_anomaly": budget_threshold(trajs, "anomaly"),
+           "B4_objective_deviation": budget_threshold(trajs, "objective_deviation")}
     hy = r3.hybrid_eval(trajs, SIGNALS)
     pts, lv = hy["_pts"], hy["_levels"]
     labels = [tr.labels for tr in trajs]
@@ -378,9 +331,10 @@ def dev_report(trajs: list[r3.Traj], dev: r1b.DevData, derived: Path = DERIVED) 
     for s in SEEDS:
         info = manifest["models"][f"seed-{s}"]
         sub, _ = seed_resample(trajs, dev, s)
-        eng = load_derived(f"seed-{s}", derived)
         pts_s, _ = r3.oof_points(sub, SIGNALS)
-        st = traj_stats(outcomes(sub, level_flags(sub, pts_s, eng.levels)))
+        # Levels from this run's points (equal to the frozen ones up to float noise): evaluating
+        # them against levels written on another OS would flip benign maxima tied at the threshold.
+        st = traj_stats(outcomes(sub, level_flags(sub, pts_s, r3.levels_from(sub, pts_s))))
         seeds[f"seed-{s}"] = {"dr": st["dr"], "fpr": st["fpr"], "n_attack": info["n_attack"], "n_benign": info["n_benign"]}
     agg = {k: {"mean": float(np.mean([v[k] for v in seeds.values()])),
                "std": float(np.std([v[k] for v in seeds.values()]))} for k in ("dr", "fpr")}
@@ -398,7 +352,7 @@ def dev_report(trajs: list[r3.Traj], dev: r1b.DevData, derived: Path = DERIVED) 
         "lofo": lofo, "g6_preview": {"families_ge_50pct_compliant": g6, "pass": g6 >= 2,
                                       "note": "dev; benign FPR ≤ 10% holds by construction of the levels"},
         "seeds": {"per_seed": seeds, **agg, "note": "each seed's own out-of-fold resample; secondary"},
-        "roc": {k: roc_points(sc, labels) for k, sc in
+        "roc": {k: roc_points([[round(x, 9) for x in s] for s in sc], labels) for k, sc in
                 {"Hybrid": pts, "B3_ml": [[s.values["anomaly"] for s in tr.sigs] for tr in trajs],
                  "B4_llm": [[s.values["objective_deviation"] for s in tr.sigs] for tr in trajs]}.items()},
         "budget_curve": budget_curve(trajs, {"Hybrid": pts,
