@@ -8,3 +8,6 @@ argus/bench/v2_test/*.jsonl -text
 argus/bench/v2_test/manifest.json -text
 argus/intent/cache/*.jsonl -text
 argus/intent/cache/**/*.jsonl -text
+
+# Windows launcher must keep CRLF line endings.
+*.bat text eol=crlf

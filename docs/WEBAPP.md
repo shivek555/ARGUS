@@ -6,6 +6,10 @@ A local console over the **frozen research system** (ADR-0014): AgentEscapeBench
 
 Requirements: Python 3.11.9 and Node 22 (both already used by the project). Nothing is downloaded at demo time: no model, no API key, no network.
 
+**Windows (no `make`):** double-click `run.bat` in the project folder, or run `run.bat 8001` for another port. The first run installs the locked Python packages and builds the dashboard; later runs just start the server and open the Demo page in your browser once it is up. Closing the window stops the server. If the port is busy, it says so and stops. Delete `dashboard\dist` to force a rebuild after pulling UI changes; set `ARGUS_NO_BROWSER=1` to skip opening the browser.
+
+Any OS:
+
 ```bash
 pip install -r requirements.txt -c constraints.txt
 npm --prefix dashboard ci

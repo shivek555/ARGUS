@@ -18,7 +18,7 @@ Tag tasks with owners: **M1** AI/ML · **M2** Security · **M3** Backend · **M4
 | R5 | Adaptive attacker (stretch) | evasion rate per round | not started |
 | W | Upgrade web app (ADR-0002) to new APIs + class demo mode | G7 | **W-a..e built** (ADR-0014 accepted; `docs/WEBAPP.md`, `docs/DEMO_SCRIPT.md`); G7 check passes locally, CI job `demo`. **Next: W-f rehearsal (you run `make serve` and walk the demo)** |
 | LA | Real LLM agent + live LLM monitor, end to end on GitHub runners (exploratory) | — (ADR-0015) | **on hold, not built** (ADR-0015): implementation stopped during LA-a; partial code reverted; plan kept as a record |
-| P | Report + presentation | — | not started |
+| P | Report + presentation | — | **plan drafted** (`docs/PLAN_P_REPORT.md`, ADR-0016 proposed), awaiting your template and format decisions |
 
 ## Done
 

@@ -14,6 +14,16 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0016 — Phase P: report and presentation built from logged results only
+
+- **Date:** 2026-10-24
+- **Status:** proposed (plan `docs/PLAN_P_REPORT.md` awaiting review; nothing written).
+- **Decision (proposed):** a ~60–80 page report (10 chapters + appendices) and a ~15-slide deck around the live demo. Every number comes from `docs/results/` through a generated numbers ledger, with a check that rejects untraced numbers. Every result carries its provenance label; test-v2 results are placeholders until the single run. Negative results and limitations are kept in every results section. AI assistance is disclosed and the team reviews every section.
+- **Why:** the brief forbids fabricated numbers and hype, and requires reproducibility and honest limitations; the repo already holds every source the report needs.
+- **Open (user):** college template and citation style, report and deck formats, slot length, team roles, submission timing relative to test v2.
+
+---
+
 ## ADR-0015 — Phase LA: a real LLM agent under a real, live LLM monitor (exploratory)
 
 - **Date:** 2026-10-24
