@@ -52,7 +52,7 @@ jobs:
       - name: Dev v2 benign regenerates byte-identically
         run: python -m argus.bench.benign_v2 --check
 
-      - name: Frozen R4 models re-derive byte-identically (ADR-0013)
+      - name: Frozen R4 models re-derive (numerically, rel. tol. 1e-6; ADR-0013)
         run: python -m argus.eval.r4 derive
 
       - name: Results tables and figures reproduce byte-identically (docs/results, R1b grid skipped)

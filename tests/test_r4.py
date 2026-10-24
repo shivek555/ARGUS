@@ -155,3 +155,19 @@ def test_latency_harness_smoke():
     assert r["components"]["policy"]["n"] >= 20 and 0 < r["risky_call_fraction"] < 1
     assert r["llm_per_risky_call"]["n"] > 0 and not r["l5_p95_le_2s"]
     assert "| policy |" in latency.to_markdown(r)
+
+
+def test_numeric_diff_tolerates_last_digit_noise_only(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    for d, coef, fp in ((a, 1.2345678901234, "x" * 64), (b, 1.2345678901239, "y" * 64)):
+        (d / "m").mkdir(parents=True)
+        (d / "m" / "model.json").write_text(json.dumps({"coef": [coef, -2.0], "names": ["s1", "s2"]}))
+        (d / "manifest.json").write_text(json.dumps({"models": {"m": {"files": {"m/model.json": fp},
+                                                                       "ml_fingerprint": fp, "n": 3}}}))
+    out, worst = r4.numeric_diff(a, b)
+    assert out == [] and 0 < worst < r4.REL_TOL
+    (b / "m" / "model.json").write_text(json.dumps({"coef": [1.2346, -2.0], "names": ["s1", "s2"]}))
+    out, _ = r4.numeric_diff(a, b)
+    assert out and "coef[0]" in out[0]
+    (b / "manifest.json").write_text(json.dumps({"models": {"m": {"files": {}, "ml_fingerprint": "z", "n": 4}}}))
+    assert any(".n:" in x for x in r4.numeric_diff(a, b)[0])

@@ -163,6 +163,61 @@ def load_derived(name: str, root: Path = DERIVED) -> RiskEngine:
     return RiskEngine(RiskModel.load(root / name / "model.json"), Levels.load(root / name / "levels.yaml"))
 
 
+# Cross-platform re-derivation check. Floating-point results differ in the last digits between
+# Windows and Linux numeric libraries, so a rerun elsewhere is compared numerically, not by bytes.
+# Hashes of the frozen files (computed from these platform-specific bytes) and the ML fingerprint
+# (scores rounded to 6 dp) are platform-specific and therefore excluded from the comparison.
+REL_TOL = 1e-6
+PLATFORM_SPECIFIC_KEYS = frozenset({"files", "ml_fingerprint"})
+
+
+def _load_any(path: Path) -> Any:
+    import yaml
+    text = path.read_text(encoding="utf-8")
+    return json.loads(text) if path.suffix == ".json" else yaml.safe_load(text)
+
+
+def _walk(a: Any, b: Any, where: str, out: list[str]) -> float:
+    """Mismatches appended to ``out``; returns the largest relative numeric difference seen."""
+    if isinstance(a, bool) or isinstance(b, bool) or not (isinstance(a, (int, float)) and isinstance(b, (int, float))):
+        if isinstance(a, dict) and isinstance(b, dict):
+            worst = 0.0
+            for k in sorted(set(a) | set(b)):
+                if k in PLATFORM_SPECIFIC_KEYS:
+                    continue
+                if k not in a or k not in b:
+                    out.append(f"{where}.{k}: missing")
+                    continue
+                worst = max(worst, _walk(a[k], b[k], f"{where}.{k}", out))
+            return worst
+        if isinstance(a, list) and isinstance(b, list):
+            if len(a) != len(b):
+                out.append(f"{where}: length {len(a)} != {len(b)}")
+                return 0.0
+            return max([_walk(x, y, f"{where}[{i}]", out) for i, (x, y) in enumerate(zip(a, b))], default=0.0)
+        if a != b:
+            out.append(f"{where}: {a!r} != {b!r}")
+        return 0.0
+    rel = abs(a - b) / max(1.0, abs(a), abs(b))
+    if rel > REL_TOL:
+        out.append(f"{where}: {a!r} != {b!r}")
+    return rel
+
+
+def numeric_diff(a: Path, b: Path) -> tuple[list[str], float]:
+    """Semantic differences between two derived-model directories (numbers within REL_TOL)."""
+    names = sorted({p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file()} |
+                   {p.relative_to(b).as_posix() for p in b.rglob("*") if p.is_file()})
+    out: list[str] = []
+    worst = 0.0
+    for n in names:
+        if not ((a / n).is_file() and (b / n).is_file()):
+            out.append(f"{n}: missing")
+            continue
+        worst = max(worst, _walk(_load_any(a / n), _load_any(b / n), n, out))
+    return out, worst
+
+
 def compare_dirs(a: Path, b: Path) -> list[str]:
     """Files that differ (LF-normalised) between two derived-model directories."""
     names = {p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file()} | \
@@ -413,11 +468,12 @@ def _derive_cmd(freeze: bool) -> int:
         return 0
     cand = OUT_DIR / "derived"
     derive(trajs, dev, cand)
-    diff = compare_dirs(cand, DERIVED)
-    status = {"candidates": str(cand), "differs_from_frozen": diff,
+    mismatches, worst = numeric_diff(cand, DERIVED)
+    status = {"candidates": str(cand), "byte_identical": not compare_dirs(cand, DERIVED),
+              "numeric_mismatches": mismatches[:50], "max_relative_difference": worst, "rel_tol": REL_TOL,
               "manifest_sha256": file_sha256(cand / "manifest.json"), "frozen": FROZEN_MANIFEST_SHA256}
     print(json.dumps(status, indent=2))
-    return 0 if not diff else 1
+    return 0 if not mismatches else 1
 
 
 def main(argv: list[str] | None = None) -> int:
