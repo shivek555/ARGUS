@@ -93,3 +93,9 @@ Runs via `.github/workflows/r2-llm.yml` (Ollama 0.40.2, ubuntu-latest, 4 CPU, no
 A first attempt at the dev run ([40070465830](https://github.com/shivek555/ARGUS/actions/runs/40070465830)) failed at setup: `ubuntu-latest` had moved to Ubuntu 26.04 with no Python 3.11.9 build. Both workflows were pinned to `ubuntu-24.04` (the pilots' image) in `c5982f5`, then rerun.
 
 **Dev preview of L1–L6 (official verdict only on test v2):** L1 ✗ (0.677 < 0.70), L2 ✗ (36.5% ≫ 10%), L3 ✓ (98% vs rules 0%), L5 ✗ (p95 9.6 s), earliness none. **Finding:** the small local LLM monitor catches almost every attack but flags legitimate risky work, including tasks whose objective explicitly authorises it. It did **not** fix the "requested edit" false alarms that motivated R2 (catalog: 26.4% vs the ML detector's 5.6%).
+
+## R3 dev (2026-10-24, ADR-0012) — risk engine, offline, $0
+
+| Run | Command | Result | Notes |
+|---|---|---|---|
+| r3-dev | `python -m argus.eval.r3` | `eval/results/r3/dev_report.json`, `configs/risk/model.json`, `configs/risk/levels.yaml` | Dev, leave-one-template-out. 120 attacks + 126 benign, 1,635 steps, ML `ocsvm-nu0.10-quantile`, LLM replay `qwen2.5:3b`. Hybrid DR **0.975** (CI 0.942–1.0), FPR **0.095** (CI 0.040–0.143); best component B2+ 0.833; CRITICAL-only DR 0.817 / FPR 0.008; harm completion 0.025 (oracle) vs 0.50 rules only; approvals 27 / 100 benign (R3-c target 15: fail). LLM weights ≈ 0. Full report: `docs/R3_DEV_REPORT.md`. |

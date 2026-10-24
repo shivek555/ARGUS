@@ -14,6 +14,23 @@ Short ADRs. Newest first. Do not hide disagreements.
 
 ---
 
+## ADR-0012 — R3 risk engine: calibrated additive score, policy-authoritative levels, containment, approval queue
+
+- **Date:** 2026-10-24
+- **Status:** plan accepted 2026-10-24; R3-a..f built (`argus/risk/`, `argus/containment/`, `argus/eval/r3.py`, `tests/test_r3.py`). **Dev checkpoint:** `docs/R3_DEV_REPORT.md` awaiting review; `configs/risk/model.json` + `levels.yaml` freeze when it is accepted.
+- **Corrections made while building:** (1) training uses only the 126 dev-v2 benign trajectories with LLM verdicts (idx < 9), not all 420, so `llm_missing` is not a benign-only artefact; (2) levels use out-of-fold benign per-trajectory maxima with `method="higher"` and strict `>`; (3) explanations keep every contribution unrounded so baseline + sum = score exactly; (4) leave-one-family-out holds out benign intents only (training attacks always present).
+- **Dev results (out-of-fold):** hybrid DR 0.975 at benign FPR 0.095 vs best component B2+ 0.833 (G5 preview pass); LLM weights ≈ 0; R3-c workload 27 approvals / 100 benign vs target 15 (**fail**); harm completion 0.025 (oracle human) vs 0.50 rules only.
+- **Decision (proposed):**
+  - **Risk model:** logistic regression (L2, C = 1) on ~11 named per-step signals (policy block, sensitive-unscoped rule, ML anomaly vs threshold, LLM deviation / escalate / missing, privilege, data sensitivity, destination, persistence, objective mention), Platt-calibrated with trajectory-grouped CV on dev. Benign ML scores are out-of-fold (LOIO) to avoid in-sample bias.
+  - **Levels**, chosen on dev by fixed nested rules: CRITICAL = policy BLOCK or ≤ 1% benign; HIGH ≤ 10% benign; MEDIUM ≤ 30%. Mapping: CRITICAL → BLOCK + quarantine, HIGH → human approval (auto-deny on timeout), MEDIUM → MONITOR, LOW → ALLOW.
+  - **Explanations:** per-signal point contributions that sum to the score.
+  - **Containment:** quarantine, capability revocation, network cut, sha256 forensic snapshot.
+  - **G5 criterion:** hybrid DR ≥ best single component at ≤ 10% benign HIGH.
+- **Why:** R1b/R2-L show complementary failure modes (ML misses on unseen legit secrets tasks; the LLM over-flags requested edits), so calibrated combination is the testable hypothesis. Non-policy signals may auto-block only above the 1%-benign threshold, because the LLM alone flags 26–37% of benign work.
+- **Alternatives:** hand-set weights (rejected: brief requires learned/calibrated weights); gradient-boosted model (rejected: not transparent/additive); voting rule over components (kept as a reported ablation, not the main model).
+
+---
+
 ## ADR-0011 — R2 live runs on a free open-weights model (Ollama on a GitHub-hosted runner), reduced scope
 
 - **Date:** 2026-10-23
